@@ -21,6 +21,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ObservationRepository>();
         services.AddSingleton<IngestionRunRepository>();
         services.AddSingleton<WaterQualityRepository>();
+        services.AddSingleton<ReadRepository>();
+        services.AddSingleton<AdminRepository>();
         services.AddSingleton<IngestionService>();
         services.AddSingleton<WaterQualityIngestionService>();
         services.AddSingleton<FreshnessChecker>();

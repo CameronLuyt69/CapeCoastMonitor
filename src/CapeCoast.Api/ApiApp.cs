@@ -1,0 +1,134 @@
+using System.Threading.RateLimiting;
+using CapeCoast.Api.Endpoints;
+using CapeCoast.Infrastructure;
+using CapeCoast.Infrastructure.Sources;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Serilog;
+
+namespace CapeCoast.Api;
+
+public static class ApiApp
+{
+    public static WebApplication Build(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Host.UseSerilog((context, services, cfg) =>
+        {
+            cfg.ReadFrom.Configuration(context.Configuration)
+               .Enrich.FromLogContext()
+               .WriteTo.Console();
+            var seq = context.Configuration["Seq:Url"];
+            if (!string.IsNullOrEmpty(seq)) cfg.WriteTo.Seq(seq);
+        });
+
+        builder.Services.AddCapeCoastData(builder.Configuration);
+        builder.Services.Configure<SourcesOptions>(builder.Configuration.GetSection(SourcesOptions.Section));
+        builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.Section));
+        builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.Section));
+        builder.Services.Configure<WaterQualityDisplayOptions>(builder.Configuration.GetSection(WaterQualityDisplayOptions.Section));
+
+        builder.Services.AddSingleton<IngestionNotifier>();
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<IngestionNotifier>());
+
+        AddAuth(builder.Services);
+        AddRateLimiting(builder.Services, builder.Configuration);
+
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen(o =>
+        {
+            o.SwaggerDoc("v1", new() { Title = "Cape Coast Monitor API", Version = "v1",
+                Description = "Ocean conditions, wind and coastal water quality for Cape Town beaches. Public and read-only, except /api/admin." });
+        });
+
+        var app = builder.Build();
+
+        app.Use(async (context, next) =>
+        {
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
+            context.Response.Headers["X-Frame-Options"] = "DENY";
+            await next();
+        });
+
+        app.UseSwagger();
+        app.UseSwaggerUI(o => o.SwaggerEndpoint("/swagger/v1/swagger.json", "Cape Coast Monitor API v1"));
+
+        app.UseDefaultFiles();
+        app.UseStaticFiles();
+
+        app.UseRateLimiter();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapLocationEndpoints();
+        app.MapStatusEndpoints();
+        app.MapStreamEndpoint();
+        app.MapAuthEndpoints();
+        app.MapAdminEndpoints();
+
+        return app;
+    }
+
+    private static void AddAuth(IServiceCollection services)
+    {
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(o =>
+            {
+                o.Cookie.Name = "ccm.auth";
+                o.Cookie.HttpOnly = true;
+                o.Cookie.SameSite = SameSiteMode.Strict;
+                o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                o.ExpireTimeSpan = TimeSpan.FromHours(8);
+                o.SlidingExpiration = false;
+                // this is an API, so answer with a status instead of redirecting to a login page
+                o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+                o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+            });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy(Roles.AdminPolicy, p => p.RequireRole(Roles.Admin))
+            .AddPolicy(Roles.ViewerPolicy, p => p.RequireRole(Roles.Viewer, Roles.Admin));
+    }
+
+    private static void AddRateLimiting(IServiceCollection services, IConfiguration config)
+    {
+        var limits = config.GetSection(RateLimitOptions.Section).Get<RateLimitOptions>() ?? new RateLimitOptions();
+
+        static string Client(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        services.AddRateLimiter(o =>
+        {
+            o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            o.AddPolicy(RateLimits.Public, c => RateLimitPartition.GetFixedWindowLimiter(Client(c),
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = limits.PublicPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+            o.AddPolicy(RateLimits.Login, c => RateLimitPartition.GetFixedWindowLimiter(Client(c),
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = limits.LoginPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+            o.AddPolicy(RateLimits.Admin, c => RateLimitPartition.GetFixedWindowLimiter(Client(c),
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = limits.AdminPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+            // each open stream holds a connection, so cap how many one client can keep
+            o.AddPolicy(RateLimits.Stream, c => RateLimitPartition.GetConcurrencyLimiter(Client(c),
+                _ => new ConcurrencyLimiterOptions { PermitLimit = limits.StreamsPerClient, QueueLimit = 0 }));
+        });
+    }
+}
+
+public static class Roles
+{
+    public const string Admin = "Admin";
+    public const string Viewer = "Viewer";
+    public const string AdminPolicy = "AdminOnly";
+    public const string ViewerPolicy = "ViewerOrAdmin";
+}
+
+public static class RateLimits
+{
+    public const string Public = "public";
+    public const string Login = "login";
+    public const string Admin = "admin";
+    public const string Stream = "stream";
+}

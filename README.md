@@ -46,3 +46,30 @@ The PDFs are kept on the worker's volume only and are not in this repository; th
 - **Which sites:** ten City sites stand in for the ten beaches (see `db/migrations/0005_city_site_codes.sql`). That mapping is my choice.
 - **Guideline value:** the City states that a single result below 240 cfu/100 ml is acceptable for recreational use
   (South African Water Quality Guidelines for Coastal Marine Water, Vol 2). Alert thresholds stay configurable.
+
+## API
+
+Swagger UI is at `/swagger`. Everything under `/api` is public and read-only except `/api/admin`.
+
+| Endpoint | What it returns |
+|---|---|
+| `GET /api/locations` | GeoJSON FeatureCollection, latest marine, wind and water quality per beach, each with its own timestamps |
+| `GET /api/locations/{slug}/history?metric=&from=&to=&interval=` | Time series. `interval` is `raw`, `day` or `week` (default picks one from the range) |
+| `GET /api/locations/{slug}/water-quality?limit=` | Recent samples, each with its source document and ingestion run |
+| `GET /api/runs/{id}` | One ingestion run, to trace a point back to the job that wrote it |
+| `GET /api/metrics` | Metric names `history` accepts |
+| `GET /api/health`, `GET /api/status` | Database check, per-source freshness and recent runs |
+| `GET /api/stream` | Server-Sent Events, an `update` event when a run writes new rows |
+| `POST /api/auth/login` | Sign in (cookie). Roles: Viewer reads admin data, Admin changes it |
+
+Design notes:
+
+- **Aggregates:** `interval=day|week` reads the daily continuous aggregates (min, max, avg) where the metric has one,
+  and aggregates raw rows otherwise. Real-time aggregation is on, so recent hours show up before the refresh policy runs.
+  Raw data is capped at 31 days per request and aggregated data at 400.
+- **Current values:** "latest" means the newest row at or before now, so forecast hours still in the future are never shown as current.
+- **SSE:** the worker calls `pg_notify` when a run writes rows and the API listens, so the two processes need no queue.
+- **Auth:** cookie sessions (HttpOnly, SameSite=Strict). A role with no password in the environment cannot be signed in to.
+  Login is rate limited, as is every public route, and each client may hold a few streams open.
+- **Water quality band:** `ok`, `exceeds` or `unknown` against `WaterQuality:SingleSampleThresholdCfu` (default 240), not a hard-coded value.
+- **Tide:** the marine model's sea level is returned as `seaLevelMslApproxM` and is not official tide data.

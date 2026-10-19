@@ -1,6 +1,4 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
+using CapeCoast.Api;
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
-
+var app = ApiApp.Build(args);
 app.Run();

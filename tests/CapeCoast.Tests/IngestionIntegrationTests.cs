@@ -19,11 +19,13 @@ public class DatabaseFixture : IAsyncLifetime
         .Build();
 
     public NpgsqlDataSource Db { get; private set; } = null!;
+    public string ConnectionString { get; private set; } = "";
 
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
         var cs = _container.GetConnectionString();
+        ConnectionString = cs;
         Assert.True(Migrator.Run(cs, NullLogger.Instance), "migrations failed");
         Db = NpgsqlDataSource.Create(cs);
     }
@@ -77,7 +79,7 @@ public class IngestionIntegrationTests
     private async Task<long> Count(string table)
     {
         await using var conn = await _fx.Db.OpenConnectionAsync();
-        return await conn.ExecuteScalarAsync<long>($"SELECT count(*) FROM {table}");
+        return await conn.ExecuteScalarAsync<long>($"SELECT count(*) FROM {table} WHERE source = 'fixture-marine'");
     }
 
     [Fact]

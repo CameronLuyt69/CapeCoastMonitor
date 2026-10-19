@@ -18,9 +18,13 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\src\CapeCoast.Api\CapeCoast.Api.csproj" />
     <ProjectReference Include="..\..\src\CapeCoast.Infrastructure\CapeCoast.Infrastructure.csproj" />
   </ItemGroup>
 
