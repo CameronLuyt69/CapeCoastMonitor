@@ -690,7 +690,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 48,
         "w": 12,
         "h": 8
       },
@@ -729,6 +729,449 @@
     },
     {
       "id": 8,
+      "type": "timeseries",
+      "title": "Air temperature",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT observed_at AS time, air_temp_c AS \"Hourly\" FROM weather_observations WHERE location_id = $beach AND source = 'open-meteo-weather' AND $__timeFilter(observed_at) ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT day AS time, air_temp_max AS \"Daily max\" FROM weather_daily WHERE location_id = $beach AND $__timeFilter(day) ORDER BY 1"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT day AS time, air_temp_min AS \"Daily min\" FROM weather_daily WHERE location_id = $beach AND $__timeFilter(day) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily max"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "custom.fillBelowTo",
+                "value": "Daily min"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 18
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily min"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Modelled 2 m air temperature, with each day's minimum and maximum shaded."
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Rain",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT observed_at AS time, precipitation_mm AS \"Rain per hour\" FROM weather_observations WHERE location_id = $beach AND source = 'open-meteo-weather' AND $__timeFilter(observed_at) ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT day AS time, precip_sum AS \"Daily total\" FROM weather_daily WHERE location_id = $beach AND $__timeFilter(day) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          },
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily total"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "points"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 9
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Modelled precipitation in mm per hour, and the total for each day."
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "UV index",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT observed_at AS time, uv_index AS \"Hourly\" FROM weather_observations WHERE location_id = $beach AND source = 'open-meteo-weather' AND $__timeFilter(observed_at) ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT day AS time, uv_max AS \"Daily peak\" FROM weather_daily WHERE location_id = $beach AND $__timeFilter(day) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3
+              },
+              {
+                "color": "orange",
+                "value": 6
+              },
+              {
+                "color": "red",
+                "value": 8
+              },
+              {
+                "color": "purple",
+                "value": 11
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily peak"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "points"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 9
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Modelled UV index. 3 to 5 is moderate, 6 to 7 high, 8 to 10 very high, 11 and above extreme."
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Visibility and cloud cover",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT observed_at AS time, visibility_m / 1000.0 AS \"Visibility\" FROM weather_observations WHERE location_id = $beach AND source = 'open-meteo-weather' AND $__timeFilter(observed_at) ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT observed_at AS time, cloud_cover_pct AS \"Cloud cover\" FROM weather_observations WHERE location_id = $beach AND source = 'open-meteo-weather' AND $__timeFilter(observed_at) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: km",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cloud cover"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 10
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Modelled visibility in kilometres and cloud cover in per cent."
+    },
+    {
+      "id": 12,
       "type": "table",
       "title": "Data quality flags in range",
       "datasource": {
@@ -745,12 +1188,12 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "SELECT source AS \"Source\", count(*) AS \"Rows\", count(*) FILTER (WHERE cardinality(quality_flags) > 0) AS \"Flagged rows\", min(observed_at) AS \"From\", max(observed_at) AS \"To\" FROM (SELECT source, observed_at, quality_flags FROM marine_observations WHERE location_id = $beach AND $__timeFilter(observed_at) UNION ALL SELECT source, observed_at, quality_flags FROM wind_observations WHERE location_id = $beach AND $__timeFilter(observed_at)) x GROUP BY source ORDER BY source"
+          "rawSql": "SELECT source AS \"Source\", count(*) AS \"Rows\", count(*) FILTER (WHERE cardinality(quality_flags) > 0) AS \"Flagged rows\", min(observed_at) AS \"From\", max(observed_at) AS \"To\" FROM (SELECT source, observed_at, quality_flags FROM marine_observations WHERE location_id = $beach AND $__timeFilter(observed_at) UNION ALL SELECT source, observed_at, quality_flags FROM wind_observations WHERE location_id = $beach AND $__timeFilter(observed_at) UNION ALL SELECT source, observed_at, quality_flags FROM weather_observations WHERE location_id = $beach AND $__timeFilter(observed_at)) x GROUP BY source ORDER BY source"
         }
       ],
       "gridPos": {
         "x": 12,
-        "y": 24,
+        "y": 48,
         "w": 12,
         "h": 8
       },

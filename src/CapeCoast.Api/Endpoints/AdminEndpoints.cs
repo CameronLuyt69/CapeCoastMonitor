@@ -9,7 +9,8 @@ public record AlertRuleRequest(string? Name, string? Metric, int? LocationId, st
 
 public record MaintenanceWindowRequest(int? LocationId, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, string? Reason);
 
-public record LocationRequest(string? Name, string? Slug, string? Coast, string? CitySiteCode, double? Lon, double? Lat, bool? Active);
+public record LocationRequest(string? Name, string? Slug, string? Coast, string? CitySiteCode, double? Lon, double? Lat, bool? Active,
+    double? FacingDeg = null);
 
 public static partial class AdminEndpoints
 {
@@ -165,6 +166,7 @@ public static partial class AdminEndpoints
             errors["citySiteCode"] = new[] { "citySiteCode looks like CN09 or XCS26" };
         if (r.Lat is null or < -90 or > 90) errors["lat"] = new[] { "lat must be between -90 and 90" };
         if (r.Lon is null or < -180 or > 180) errors["lon"] = new[] { "lon must be between -180 and 180" };
+        if (r.FacingDeg is < 0 or >= 360) errors["facingDeg"] = new[] { "facingDeg is a compass bearing from 0 up to but not including 360" };
         return errors;
     }
 
@@ -182,6 +184,7 @@ public static partial class AdminEndpoints
             Lon = r.Lon!.Value,
             Lat = r.Lat!.Value,
             Active = r.Active ?? true,
+            FacingDeg = (float?)r.FacingDeg,
         }, ct);
 
         return created is null
@@ -203,6 +206,7 @@ public static partial class AdminEndpoints
             Lon = r.Lon!.Value,
             Lat = r.Lat!.Value,
             Active = r.Active ?? true,
+            FacingDeg = (float?)r.FacingDeg,
         }, ct);
 
         if (updated is not null) return Results.Json(updated);

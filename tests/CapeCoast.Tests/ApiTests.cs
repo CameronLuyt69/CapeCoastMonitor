@@ -33,10 +33,13 @@ public class ApiTests : IAsyncLifetime
     private async Task Seed()
     {
         await using var conn = await _fx.Db.OpenConnectionAsync();
-        await conn.ExecuteAsync(@"DELETE FROM marine_observations; DELETE FROM wind_observations;
+        await conn.ExecuteAsync(@"DELETE FROM marine_observations; DELETE FROM wind_observations; DELETE FROM weather_observations;
             DELETE FROM water_quality_samples; DELETE FROM source_documents; DELETE FROM alert_events;
             DELETE FROM alert_rules; DELETE FROM maintenance_windows; DELETE FROM ingestion_runs;
-            UPDATE locations SET active = true");
+            -- put back anything a test may have edited on the shared beaches
+            UPDATE locations SET active = true, facing_deg = CASE coast WHEN 'Atlantic' THEN 270 WHEN 'False Bay' THEN 180 END,
+                facing_source = 'coast-default';
+            UPDATE locations SET name = 'Llandudno' WHERE slug = 'llandudno'");
 
         _runId = await conn.ExecuteScalarAsync<long>(
             "INSERT INTO ingestion_runs (source, status, finished_at, rows_fetched, rows_written) VALUES ('open-meteo-marine', 'succeeded', now(), 73, 73) RETURNING id");
@@ -48,12 +51,15 @@ public class ApiTests : IAsyncLifetime
         {
             var t = _hour.AddHours(i);
             await conn.ExecuteAsync(@"
-                INSERT INTO marine_observations (location_id, source, observed_at, forecast_issued_at, wave_height_m, swell_height_m, swell_period_s, sea_temp_c, ingestion_run_id)
-                VALUES (@id, 'open-meteo-marine', @t, now(), @wave, 1.0, @period, 16.0, @run)",
+                INSERT INTO marine_observations (location_id, source, observed_at, forecast_issued_at, wave_height_m, swell_height_m, swell_period_s, swell_direction_deg, sea_temp_c, ingestion_run_id)
+                VALUES (@id, 'open-meteo-marine', @t, now(), @wave, 1.0, @period, 270, 16.0, @run)",
                 new { id, t, wave = 1.0 + (i + 71) * 0.1, period = 8.0 + ((i % 3) + 3) % 3, run = _runId });
             await conn.ExecuteAsync(@"
                 INSERT INTO wind_observations (location_id, source, observed_at, forecast_issued_at, speed_kmh, gust_kmh, direction_deg)
                 VALUES (@id, 'open-meteo-forecast', @t, now(), 20, 35, 180)", new { id, t });
+            await conn.ExecuteAsync(@"
+                INSERT INTO weather_observations (location_id, source, observed_at, forecast_issued_at, air_temp_c, precipitation_mm, uv_index, visibility_m, cloud_cover_pct, humidity_pct)
+                VALUES (@id, 'open-meteo-weather', @t, now(), @temp, 0.5, 6, 30000, 40, 70)", new { id, t, temp = 15.0 + (i + 71) * 0.05 });
         }
 
         var doc = await conn.ExecuteScalarAsync<long>(@"
@@ -140,6 +146,154 @@ public class ApiTests : IAsyncLifetime
         var props = Feature(json, "noordhoek").GetProperty("properties");
         Assert.Equal(JsonValueKind.Null, props.GetProperty("marine").ValueKind);
         Assert.Equal(JsonValueKind.Null, props.GetProperty("waterQuality").ValueKind);
+    }
+
+    [Fact]
+    public async Task Latest_weather_is_the_current_hour_with_every_field()
+    {
+        var json = await ApiTestHost.Json(await Get("/api/locations"));
+
+        var weather = Feature(json, "clifton-4th").GetProperty("properties").GetProperty("weather");
+        Assert.Equal(_hour, weather.GetProperty("observedAt").GetDateTime().ToUniversalTime());
+        Assert.Equal(6, weather.GetProperty("uvIndex").GetDouble());
+        Assert.Equal(30000, weather.GetProperty("visibilityM").GetDouble());
+        Assert.Equal(0.5, weather.GetProperty("precipitationMm").GetDouble(), 3);
+        Assert.Equal(15.0 + 71 * 0.05, weather.GetProperty("airTempC").GetDouble(), 1);
+        Assert.Equal(JsonValueKind.Null, Feature(json, "noordhoek").GetProperty("properties").GetProperty("weather").ValueKind);
+    }
+
+    [Theory]
+    [InlineData("air_temp")]
+    [InlineData("precipitation")]
+    [InlineData("uv_index")]
+    [InlineData("visibility")]
+    [InlineData("cloud_cover")]
+    [InlineData("humidity")]
+    public async Task Every_weather_metric_has_raw_and_daily_history(string metric)
+    {
+        var from = Uri.EscapeDataString(_hour.AddDays(-2).ToString("o"));
+
+        var raw = await ApiTestHost.Json(await Get($"/api/locations/clifton-4th/history?metric={metric}&interval=raw&from={from}"));
+        var daily = await ApiTestHost.Json(await Get($"/api/locations/clifton-4th/history?metric={metric}&interval=day&from={from}"));
+
+        Assert.NotEmpty(raw.GetProperty("points").EnumerateArray());
+        var first = daily.GetProperty("points").EnumerateArray().First();
+        Assert.True(first.GetProperty("min").GetDouble() <= first.GetProperty("max").GetDouble());
+    }
+
+    [Fact]
+    public async Task Alert_rules_can_use_the_new_metrics()
+    {
+        var admin = await ApiTestHost.SignedIn(_host, "admin", "admin-pass");
+
+        var response = await admin.PostAsJsonAsync("/api/admin/alert-rules", new
+        {
+            name = "High UV",
+            metric = "uv_index",
+            @operator = ">",
+            threshold = 8,
+            severity = "warning",
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_surf_estimate_is_computed_from_the_current_swell_wind_and_the_beach_bearing()
+    {
+        var json = await ApiTestHost.Json(await Get("/api/locations"));
+
+        // clifton faces 270 (the Atlantic default), swell 1.0 m / 8 s from 270, wind 20 km/h from 180 (along the beach):
+        // size 28 + period 10 + wind 30 x 0.5 = 53
+        var surf = Feature(json, "clifton-4th").GetProperty("properties").GetProperty("surf");
+        Assert.Equal(53, surf.GetProperty("score").GetInt32());
+        Assert.Equal("Good", surf.GetProperty("label").GetString());
+        Assert.Equal(28, surf.GetProperty("sizePoints").GetDouble(), 1);
+        Assert.Equal(10, surf.GetProperty("periodPoints").GetDouble(), 1);
+        Assert.Equal(15, surf.GetProperty("windPoints").GetDouble(), 1);
+        Assert.Equal(40, surf.GetProperty("maxPoints").GetProperty("size").GetInt32());
+        Assert.Equal(270, surf.GetProperty("facingDeg").GetDouble());
+        Assert.Equal("coast-default", surf.GetProperty("facingSource").GetString());
+        Assert.Contains("not a surf report", surf.GetProperty("note").GetString());
+    }
+
+    [Fact]
+    public async Task A_beach_with_no_forecast_has_no_surf_score_and_lists_what_is_missing()
+    {
+        var json = await ApiTestHost.Json(await Get("/api/locations"));
+
+        var surf = Feature(json, "noordhoek").GetProperty("properties").GetProperty("surf");
+        Assert.Equal(JsonValueKind.Null, surf.GetProperty("score").ValueKind);
+        Assert.Equal(JsonValueKind.Null, surf.GetProperty("label").ValueKind);
+        var missing = surf.GetProperty("missing").EnumerateArray().Select(m => m.GetString()).ToList();
+        Assert.Contains("swell height", missing);
+        Assert.Contains("wind speed", missing);
+    }
+
+    [Fact]
+    public async Task Setting_a_beach_bearing_changes_its_surf_estimate_and_marks_it_manual()
+    {
+        var admin = await ApiTestHost.SignedIn(_host, "admin", "admin-pass");
+        var id = await LocationId("clifton-4th");
+
+        // turn the beach to face south: the 270 swell is now 90 degrees off and cannot reach it
+        var put = await admin.PutAsJsonAsync($"/api/admin/locations/{id}",
+            new { name = "Clifton 4th", coast = "Atlantic", lon = 18.374417, lat = -33.940619, citySiteCode = "CN09", facingDeg = 180 });
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        Assert.Equal(180, (await ApiTestHost.Json(put)).GetProperty("facingDeg").GetDouble());
+
+        var json = await ApiTestHost.Json(await Get("/api/locations"));
+        var surf = Feature(json, "clifton-4th").GetProperty("properties").GetProperty("surf");
+        Assert.Equal("manual", surf.GetProperty("facingSource").GetString());
+        Assert.Equal(0, surf.GetProperty("score").GetInt32());
+    }
+
+    [Fact]
+    public async Task Editing_a_beach_without_a_bearing_keeps_the_one_it_has()
+    {
+        var admin = await ApiTestHost.SignedIn(_host, "admin", "admin-pass");
+        var id = await LocationId("llandudno");
+
+        var put = await admin.PutAsJsonAsync($"/api/admin/locations/{id}",
+            new { name = "Llandudno beach", coast = "Atlantic", lon = 18.34031, lat = -34.007816, citySiteCode = "XCN03" });
+
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        var body = await ApiTestHost.Json(put);
+        Assert.Equal(270, body.GetProperty("facingDeg").GetDouble());
+        Assert.Equal("coast-default", body.GetProperty("facingSource").GetString());
+    }
+
+    [Theory]
+    [InlineData(360)]
+    [InlineData(-1)]
+    [InlineData(720)]
+    public async Task A_bearing_outside_zero_to_360_is_rejected(double bearing)
+    {
+        var admin = await ApiTestHost.SignedIn(_host, "admin", "admin-pass");
+        var id = await LocationId("clifton-4th");
+
+        var put = await admin.PutAsJsonAsync($"/api/admin/locations/{id}",
+            new { name = "Clifton 4th", coast = "Atlantic", lon = 18.37, lat = -33.94, facingDeg = bearing });
+
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
+        Assert.True((await ApiTestHost.Json(put)).GetProperty("errors").TryGetProperty("facingDeg", out _));
+    }
+
+    [Fact]
+    public async Task A_new_beach_without_a_bearing_has_none_rather_than_a_guess()
+    {
+        var admin = await ApiTestHost.SignedIn(_host, "admin", "admin-pass");
+
+        var created = await admin.PostAsJsonAsync("/api/admin/locations",
+            new { name = "Bearing Cove", slug = "bearing-cove", coast = "Atlantic", lon = 18.3, lat = -34.0 });
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var body = await ApiTestHost.Json(created);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("facingDeg").ValueKind);
+        Assert.Equal("unset", body.GetProperty("facingSource").GetString());
+
+        await using var conn = await _fx.Db.OpenConnectionAsync();
+        await conn.ExecuteAsync("DELETE FROM locations WHERE slug = 'bearing-cove'");
     }
 
     // history
@@ -282,7 +436,7 @@ public class ApiTests : IAsyncLifetime
         var json = await ApiTestHost.Json(await Get("/api/status"));
 
         var sources = json.GetProperty("sources").EnumerateArray().ToDictionary(s => s.GetProperty("source").GetString()!);
-        Assert.Equal(3, sources.Count);
+        Assert.Equal(4, sources.Count);
         Assert.False(sources["open-meteo-marine"].GetProperty("stale").GetBoolean());       // run seeded just now
         Assert.True(sources["open-meteo-forecast"].GetProperty("stale").GetBoolean());      // never ran
         Assert.Equal(_runId, sources["open-meteo-marine"].GetProperty("recentRuns")[0].GetProperty("id").GetInt64());

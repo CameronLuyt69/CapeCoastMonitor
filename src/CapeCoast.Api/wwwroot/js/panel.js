@@ -1,10 +1,10 @@
 import { api } from './api.js';
 import { renderChart } from './chart.js';
-import { METRICS, nearestSample } from './chart-model.js';
+import { METRICS, nearestSample, scalePoints } from './chart-model.js';
 import { clear, el, link } from './dom.js';
 import {
   compass, daysAgoText, daysBetween, formatDate, formatDateTime, formatResult, show,
-  STALE_AFTER_DAYS, timeAgoText, waterQualityStatus,
+  STALE_AFTER_DAYS, timeAgoText, uvCategory, visibilityText, waterQualityStatus,
 } from './format.js';
 
 const RANGE_BACK_DAYS = 7;
@@ -12,6 +12,8 @@ const RANGE_FORWARD_DAYS = 3;
 
 // in a snapshot there is no API to open, so a run is shown as text
 const runLink = (id, text) => (api.isStatic ? el('span', {}, text) : link(`/api/runs/${id}`, text));
+
+const round1 = (v) => Math.round(v * 10) / 10;
 
 export function createPanel(root, { onClose }) {
   let current = null;       // { feature, metric, samples, token }
@@ -51,6 +53,7 @@ export function createPanel(root, { onClose }) {
         el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close beach details', onclick: close }, '✕')),
       waterQualityCard(p.waterQuality, feature.withheld === true),
       conditionsCard(p),
+      surfCard(p.surf),
       el('section', { class: 'card', 'aria-labelledby': 'trend-h' },
         el('h3', { id: 'trend-h' }, 'Trend'),
         el('label', { class: 'field' }, el('span', {}, 'Metric'),
@@ -111,6 +114,31 @@ export function createPanel(root, { onClose }) {
     return card;
   }
 
+  function surfCard(surf) {
+    // an older snapshot has no surf block, in which case there is no card at all
+    if (!surf) return null;
+    const card = el('section', { class: 'card', 'aria-labelledby': 'surf-h' }, el('h3', { id: 'surf-h' }, 'Surf estimate'));
+
+    if (surf.score == null) {
+      card.append(el('p', { class: 'muted' }, `Can’t be estimated right now: no value for ${surf.missing.join(', ')}.`));
+    } else {
+      const max = surf.maxPoints;
+      card.append(
+        el('p', { class: 'big' }, String(surf.score), el('span', { class: 'unit' }, ` / 100 · ${surf.label}`)),
+        el('dl', { class: 'stats' },
+          el('div', {}, el('dt', {}, 'Swell size'), el('dd', {}, `${surf.sizePoints} of ${max.size}`)),
+          el('div', {}, el('dt', {}, 'Swell period'), el('dd', {}, `${surf.periodPoints} of ${max.period}`)),
+          el('div', {}, el('dt', {}, 'Wind'), el('dd', {}, `${surf.windPoints} of ${max.wind}`))));
+    }
+
+    const facing = surf.facingDeg == null
+      ? 'The direction this beach faces has not been set.'
+      : `Beach faces ${Math.round(surf.facingDeg)}° ${{ 'coast-default': '(a rough default for this coast, not measured)', manual: '(set by hand)' }[surf.facingSource] ?? ''}`.trim();
+    card.append(el('p', { class: 'muted small' },
+      'An estimate worked out from the forecast swell and wind, not a surf report. ', facing));
+    return card;
+  }
+
   function conditionsCard(p) {
     const now = new Date();
     const card = el('section', { class: 'card', 'aria-labelledby': 'cond-h' }, el('h3', { id: 'cond-h' }, 'Conditions now (model)'));
@@ -129,13 +157,22 @@ export function createPanel(root, { onClose }) {
       row('Wind', show(wind.speedKmh, 'km/h', 0), `from ${compass(wind.directionDeg)}`);
       row('Gusts', show(wind.gustKmh, 'km/h', 0));
     }
-    if (!marine && !wind) {
+    const weather = p.weather;
+    if (weather) {
+      row('Air temperature', show(weather.airTempC, '°C'));
+      row('Rain (this hour)', show(weather.precipitationMm, 'mm'));
+      row('UV index', weather.uvIndex == null ? 'no data' : String(round1(weather.uvIndex)), uvCategory(weather.uvIndex));
+      row('Visibility', visibilityText(weather.visibilityM));
+      row('Cloud cover', show(weather.cloudCoverPct, '%', 0));
+      row('Humidity', show(weather.humidityPct, '%', 0));
+    }
+    if (!marine && !wind && !weather) {
       card.append(el('p', { class: 'muted' }, 'No model data has been ingested for this beach yet.'));
       return card;
     }
     card.append(grid);
-    const at = marine?.observedAt ?? wind?.observedAt;
-    const issued = marine?.forecastIssuedAt ?? wind?.forecastIssuedAt;
+    const at = marine?.observedAt ?? wind?.observedAt ?? weather?.observedAt;
+    const issued = marine?.forecastIssuedAt ?? wind?.forecastIssuedAt ?? weather?.forecastIssuedAt;
     card.append(el('p', { class: 'muted small' },
       `Modelled values for ${formatDateTime(at)}, fetched ${timeAgoText(issued, now)}. These are forecasts for the nearest grid cell, not measurements at the beach.`));
     return card;
@@ -211,7 +248,8 @@ export function createPanel(root, { onClose }) {
       if (mine !== token || metric !== current.metric) return;
 
       renderChart(host, {
-        raw: raw.points, daily: daily.points, samples: current.samples, metric, from, to, now,
+        raw: scalePoints(raw.points, metric.factor), daily: scalePoints(daily.points, metric.factor),
+        samples: current.samples, metric, from, to, now,
         onPoint: (point) => showPointDetails(point, metric),
         onSample: (sample) => showSampleDetails(sample),
       });

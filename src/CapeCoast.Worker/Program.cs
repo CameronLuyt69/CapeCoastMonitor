@@ -38,6 +38,8 @@ builder.Services.AddQuartz(q =>
     if (sources.OpenMeteoWind.Enabled)
         Schedule<WindIngestJob>(q, "wind", sources.OpenMeteoWind.IntervalMinutes, startDelaySeconds: 15);
 
+    if (sources.OpenMeteoWeather.Enabled)
+        Schedule<WeatherIngestJob>(q, "weather", sources.OpenMeteoWeather.IntervalMinutes, startDelaySeconds: 20);
     if (sources.CityWaterQuality.Enabled)
         Schedule<WaterQualityIngestJob>(q, "water-quality", sources.CityWaterQuality.IntervalMinutes, startDelaySeconds: 30);
 

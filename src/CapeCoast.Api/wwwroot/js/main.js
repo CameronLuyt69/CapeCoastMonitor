@@ -9,6 +9,7 @@ import { initTheme } from './theme.js';
 const SOURCE_NAMES = {
   'open-meteo-marine': 'Waves and sea temperature',
   'open-meteo-forecast': 'Wind',
+  'open-meteo-weather': 'Air temperature, rain and UV',
   'cct-coastal-water-quality': 'Water quality report',
 };
 

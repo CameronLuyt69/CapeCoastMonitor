@@ -20,7 +20,8 @@ public static class ServiceCollectionExtensions
         var connectionString = config.GetConnectionString("Default")
             ?? throw new InvalidOperationException("ConnectionStrings:Default is not set");
 
-        services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+        // created by the container (not handed an instance) so it is disposed, and its pooled connections closed, on shutdown
+        services.AddSingleton<NpgsqlDataSource>(_ => NpgsqlDataSource.Create(connectionString));
         services.AddSingleton<LocationRepository>();
         services.AddSingleton<ObservationRepository>();
         services.AddSingleton<IngestionRunRepository>();
@@ -40,11 +41,13 @@ public static class ServiceCollectionExtensions
         var options = config.GetSection(SourcesOptions.Section).Get<SourcesOptions>() ?? new SourcesOptions();
 
         services.AddHttpClient(OpenMeteoMarineSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1"));
+        services.AddHttpClient(OpenMeteoWeatherSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1"));
         services.AddHttpClient(OpenMeteoWindSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1"));
 
         // a disabled source simply isn't registered, so its job has nothing to run
         if (options.OpenMeteoMarine.Enabled) services.AddSingleton<IMarineSource, OpenMeteoMarineSource>();
         if (options.OpenMeteoWind.Enabled) services.AddSingleton<IWindSource, OpenMeteoWindSource>();
+        if (options.OpenMeteoWeather.Enabled) services.AddSingleton<IWeatherSource, OpenMeteoWeatherSource>();
 
         services.AddHttpClient(CityReportSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1 (non-commercial portfolio project)"));
         if (options.CityWaterQuality.Enabled) services.AddSingleton<IWaterQualitySource, CityReportSource>();

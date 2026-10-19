@@ -8,7 +8,7 @@ namespace CapeCoast.Infrastructure.Migrations;
 public static class Migrator
 {
     // Scripts that can't run inside a transaction (timescale continuous aggregates)
-    private static readonly string[] NoTransaction = { "0003_continuous_aggregates.sql", "0006_realtime_aggregates.sql" };
+    private static readonly string[] NoTransaction = { "0003_continuous_aggregates.sql", "0006_realtime_aggregates.sql", "0010_weather_daily.sql" };
 
     /// <summary>
     /// A freshly created Postgres container briefly accepts and then drops connections while it initialises,

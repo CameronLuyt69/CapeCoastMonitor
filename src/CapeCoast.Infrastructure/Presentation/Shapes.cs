@@ -55,6 +55,18 @@ public static class Shapes
                     gustKmh = r.GustKmh,
                     directionDeg = r.DirectionDeg,
                 },
+                surf = Surf(r),
+                weather = r.WeatherAt is null ? null : new
+                {
+                    observedAt = r.WeatherAt,
+                    forecastIssuedAt = r.WeatherIssuedAt,
+                    airTempC = r.AirTempC,
+                    precipitationMm = r.PrecipitationMm,
+                    uvIndex = r.UvIndex,
+                    visibilityM = r.VisibilityM,
+                    cloudCoverPct = r.CloudCoverPct,
+                    humidityPct = r.HumidityPct,
+                },
                 waterQuality = !includeWaterQuality || r.WqSampledAt is null ? null : new
                 {
                     sampleId = r.WqId,
@@ -76,6 +88,30 @@ public static class Shapes
             waterQualityIncluded = includeWaterQuality,
             waterQualityThresholdCfu = threshold,
             features,
+        };
+    }
+
+    /// <summary>
+    /// The derived surf estimate for a beach right now. Every input is the model value for the current hour, so
+    /// it is an estimate from the forecast and says so. A missing input leaves the score empty and lists what is missing.
+    /// </summary>
+    private static object Surf(LatestConditionsRow r)
+    {
+        var result = SurfScore.Calculate(new SurfInputs(r.SwellHeightM, r.SwellPeriodS, r.SwellDirectionDeg,
+            r.SpeedKmh, r.DirectionDeg, r.FacingDeg));
+
+        return new
+        {
+            score = result.Score,
+            label = result.Label,
+            sizePoints = result.SizePoints is null ? (double?)null : Math.Round(result.SizePoints.Value, 1),
+            periodPoints = result.PeriodPoints is null ? (double?)null : Math.Round(result.PeriodPoints.Value, 1),
+            windPoints = result.WindPoints is null ? (double?)null : Math.Round(result.WindPoints.Value, 1),
+            maxPoints = new { size = SurfScore.MaxSize, period = SurfScore.MaxPeriod, wind = SurfScore.MaxWind },
+            missing = result.Missing,
+            facingDeg = r.FacingDeg,
+            facingSource = r.FacingSource,
+            note = "Estimate from the forecast, not a surf report. See docs/surf-score.md.",
         };
     }
 

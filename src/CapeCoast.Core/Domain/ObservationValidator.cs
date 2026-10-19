@@ -34,6 +34,21 @@ public static class ObservationValidator
         return w with { QualityFlags = flags.ToArray() };
     }
 
+    public static WeatherObservation Validate(WeatherObservation o)
+    {
+        var flags = new List<string>();
+        var w = o with
+        {
+            AirTempC = Check(o.AirTempC, -20, 55, "air_temp_c", flags),
+            PrecipitationMm = Check(o.PrecipitationMm, 0, 300, "precipitation_mm", flags),
+            UvIndex = Check(o.UvIndex, 0, 20, "uv_index", flags),
+            VisibilityM = Check(o.VisibilityM, 0, 200000, "visibility_m", flags),
+            CloudCoverPct = Check(o.CloudCoverPct, 0, 100, "cloud_cover_pct", flags),
+            HumidityPct = Check(o.HumidityPct, 0, 100, "humidity_pct", flags),
+        };
+        return w with { QualityFlags = flags.ToArray() };
+    }
+
     private static double? Check(double? value, double min, double max, string field, List<string> flags)
     {
         if (value is null)

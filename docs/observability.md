@@ -47,6 +47,12 @@ long as a browser does.
 If you would rather have Prometheus, the meters are ordinary OpenTelemetry meters, so adding an exporter in
 `TelemetryExtensions` is all it takes. `Telemetry__Enabled=false` turns metrics and traces off.
 
+## What the status page covers
+
+`/api/status`, the freshness table on the pipeline dashboard and the stale-source warning in the logs cover four sources: marine
+(`open-meteo-marine`), wind (`open-meteo-forecast`), weather (`open-meteo-weather`: air temperature, rain, UV, visibility, cloud and
+humidity) and the City report (`cct-coastal-water-quality`). Each has its own run history, so a failure of one doesn't hide the others.
+
 ## Grafana
 
 http://localhost:3000, user `admin`, password `GRAFANA_ADMIN_PASSWORD`. The Postgres datasource and the three dashboards

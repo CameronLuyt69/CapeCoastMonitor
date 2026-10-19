@@ -10,7 +10,7 @@ Manage them through `/api/admin/alert-rules` (Admin to change, Viewer to read).
 
 | Field | Meaning |
 |---|---|
-| `metric` | `enterococci` or any name from `/api/metrics` (`wave_height`, `swell_height`, `swell_period`, `wind_speed`, `wind_gust`, `sea_temp`, ...) |
+| `metric` | `enterococci` or any name from `/api/metrics` (`wave_height`, `swell_height`, `swell_period`, `wind_speed`, `wind_gust`, `sea_temp`, `air_temp`, `precipitation`, `uv_index`, `visibility`, `cloud_cover`, `humidity`, ...) |
 | `locationId` | One beach, or null for every beach |
 | `ruleType` | `static` or `baseline` |
 | `operator`, `threshold` | `>`, `>=`, `<`, `<=` and a number (for baseline rules, a percentage) |

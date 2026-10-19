@@ -26,6 +26,7 @@ public class StatusService
         {
             (OpenMeteoMarineSource.SourceName, _options.OpenMeteoMarine),
             (OpenMeteoWindSource.SourceName, _options.OpenMeteoWind),
+            (OpenMeteoWeatherSource.SourceName, _options.OpenMeteoWeather),
             (CityReportSource.SourceName, _options.CityWaterQuality),
         };
 

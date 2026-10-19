@@ -47,6 +47,25 @@ public class WindIngestJob : IJob
 }
 
 [DisallowConcurrentExecution]
+public class WeatherIngestJob : IJob
+{
+    private readonly IEnumerable<IWeatherSource> _sources;
+    private readonly IngestionService _ingestion;
+
+    public WeatherIngestJob(IEnumerable<IWeatherSource> sources, IngestionService ingestion)
+    {
+        _sources = sources;
+        _ingestion = ingestion;
+    }
+
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("weather-ingest", async () =>
+    {
+        foreach (var source in _sources)
+            await _ingestion.RunWeatherAsync(source, context.CancellationToken);
+    });
+}
+
+[DisallowConcurrentExecution]
 public class WaterQualityIngestJob : IJob
 {
     private readonly IEnumerable<IWaterQualitySource> _sources;
@@ -104,6 +123,7 @@ public class FreshnessJob : IJob
         {
             (OpenMeteoMarineSource.SourceName, _options.OpenMeteoMarine),
             (OpenMeteoWindSource.SourceName, _options.OpenMeteoWind),
+            (OpenMeteoWeatherSource.SourceName, _options.OpenMeteoWeather),
             (CityReportSource.SourceName, (SourceOptions)_options.CityWaterQuality),
         };
 

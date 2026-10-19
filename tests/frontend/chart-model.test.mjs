@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildChart, nearestPoint, nearestSample, niceTicks } from '../../src/CapeCoast.Api/wwwroot/js/chart-model.js';
+import { buildChart, METRICS, nearestPoint, nearestSample, niceTicks, scalePoints } from '../../src/CapeCoast.Api/wwwroot/js/chart-model.js';
 
 const from = '2026-10-12T00:00:00Z';
 const to = '2026-10-22T00:00:00Z';
@@ -82,4 +82,26 @@ test('nearestSample links a point to the closest sample within the window', () =
   assert.equal(nearestSample(samples, '2026-09-04T12:00:00Z', 7).id, 1);
   assert.equal(nearestSample(samples, '2026-10-19T00:00:00Z', 7), null);
   assert.equal(nearestSample([], '2026-09-10T00:00:00Z'), null);
+});
+
+test('scalePoints converts units and leaves missing values missing', () => {
+  const raw = scalePoints([{ t: 'a', value: 41640, ingestionRunId: 3 }, { t: 'b', value: null }], 0.001);
+  assert.ok(Math.abs(raw[0].value - 41.64) < 1e-9);
+  assert.equal(raw[0].ingestionRunId, 3);
+  assert.equal(raw[1].value, null);
+
+  const daily = scalePoints([{ t: 'a', min: 3820, max: 49020, avg: 30000 }], 0.001);
+  assert.ok(Math.abs(daily[0].min - 3.82) < 1e-9 && Math.abs(daily[0].max - 49.02) < 1e-9 && Math.abs(daily[0].avg - 30) < 1e-9);
+
+  const same = [{ t: 'a', value: 1 }];
+  assert.equal(scalePoints(same, undefined), same);
+  assert.equal(scalePoints(same, 1), same);
+});
+
+test('every chart metric has a label, a unit and a key the API understands', () => {
+  const keys = METRICS.map((m) => m.key);
+  assert.equal(new Set(keys).size, keys.length);
+  for (const k of ['air_temp', 'precipitation', 'uv_index', 'visibility', 'cloud_cover', 'humidity']) assert.ok(keys.includes(k), k);
+  assert.ok(METRICS.every((m) => m.label && typeof m.unit === 'string'));
+  assert.equal(METRICS.find((m) => m.key === 'visibility').factor, 0.001);
 });

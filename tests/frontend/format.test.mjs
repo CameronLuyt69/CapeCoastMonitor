@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  compass, daysAgoText, daysBetween, formatResult, round, show, timeAgoText, waterQualityStatus,
+  compass, daysAgoText, daysBetween, formatResult, round, show, timeAgoText, uvCategory, visibilityText, waterQualityStatus,
 } from '../../src/CapeCoast.Api/wwwroot/js/format.js';
 
 const now = new Date('2026-10-19T12:00:00Z');
@@ -77,4 +77,25 @@ test('a snapshot without water quality shows its own status, never "no sampling 
   assert.match(status.label, /not in this snapshot/);
   assert.equal(waterQualityStatus(null, now, true).key, 'withheld');
   assert.equal(waterQualityStatus(null, now, false).key, 'none');
+});
+
+test('UV index bands follow the WHO scale', () => {
+  assert.equal(uvCategory(0), 'low');
+  assert.equal(uvCategory(2.9), 'low');
+  assert.equal(uvCategory(3), 'moderate');
+  assert.equal(uvCategory(5.9), 'moderate');
+  assert.equal(uvCategory(6), 'high');
+  assert.equal(uvCategory(7.15), 'high');
+  assert.equal(uvCategory(8), 'very high');
+  assert.equal(uvCategory(10.9), 'very high');
+  assert.equal(uvCategory(11), 'extreme');
+  assert.equal(uvCategory(null), '');
+});
+
+test('visibility is shown in metres below a kilometre and kilometres above', () => {
+  assert.equal(visibilityText(850), '850 m');
+  assert.equal(visibilityText(999.4), '999 m');
+  assert.equal(visibilityText(1000), '1 km');
+  assert.equal(visibilityText(41640), '41.6 km');
+  assert.equal(visibilityText(null), 'no data');
 });

@@ -28,6 +28,7 @@ public class SourcesOptions
     public const string Section = "Sources";
     public SourceOptions OpenMeteoMarine { get; set; } = new() { BaseUrl = "https://marine-api.open-meteo.com/v1/marine" };
     public SourceOptions OpenMeteoWind { get; set; } = new() { BaseUrl = "https://api.open-meteo.com/v1/forecast" };
+    public SourceOptions OpenMeteoWeather { get; set; } = new() { BaseUrl = "https://api.open-meteo.com/v1/forecast" };
 
     public WaterQualityOptions CityWaterQuality { get; set; } = new()
     {

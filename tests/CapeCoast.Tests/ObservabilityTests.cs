@@ -307,6 +307,27 @@ public class CorrelationIntegrationTests
     }
 
     [Fact]
+    public async Task Stopping_the_app_closes_its_database_connections()
+    {
+        async Task<long> Connections()
+        {
+            await using var conn = await _fx.Db.OpenConnectionAsync();
+            return await conn.ExecuteScalarAsync<long>("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()");
+        }
+
+        var before = await Connections();
+        for (var i = 0; i < 3; i++)
+        {
+            await using var host = await ApiTestHost.StartAsync(_fx.ConnectionString);
+            await host.Client.GetAsync("/api/locations");   // opens pooled connections
+        }
+        await Task.Delay(500);   // the server notices closed sockets a moment later
+
+        // a leaked data source would leave its pool open behind every host that was started
+        Assert.True(await Connections() <= before + 1, "connections were left open after the hosts stopped");
+    }
+
+    [Fact]
     public async Task A_caller_supplied_id_is_echoed_back_so_a_request_can_be_followed_end_to_end()
     {
         await using var host = await ApiTestHost.StartAsync(_fx.ConnectionString);

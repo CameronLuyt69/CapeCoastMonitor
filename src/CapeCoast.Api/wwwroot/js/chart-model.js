@@ -7,7 +7,25 @@ export const METRICS = [
   { key: 'wind_speed', label: 'Wind speed', unit: 'km/h', zeroBased: true },
   { key: 'wind_gust', label: 'Wind gust', unit: 'km/h', zeroBased: true },
   { key: 'sea_temp', label: 'Sea temperature', unit: '°C', zeroBased: false },
+  { key: 'air_temp', label: 'Air temperature', unit: '°C', zeroBased: false },
+  { key: 'precipitation', label: 'Rain', unit: 'mm', zeroBased: true },
+  { key: 'uv_index', label: 'UV index', unit: '', zeroBased: true },
+  // stored in metres, shown in kilometres
+  { key: 'visibility', label: 'Visibility', unit: 'km', zeroBased: true, factor: 0.001 },
+  { key: 'cloud_cover', label: 'Cloud cover', unit: '%', zeroBased: true },
+  { key: 'humidity', label: 'Humidity', unit: '%', zeroBased: true },
 ];
+
+/** Multiplies every value in a history response by a unit factor, leaving missing values missing. */
+export function scalePoints(points, factor) {
+  if (!factor || factor === 1) return points;
+  const f = (v) => (v == null ? v : v * factor);
+  return points.map((p) => ({
+    ...p,
+    ...('value' in p ? { value: f(p.value) } : {}),
+    ...('min' in p ? { min: f(p.min), max: f(p.max), avg: f(p.avg) } : {}),
+  }));
+}
 
 /** Round-number tick positions covering [min, max]. */
 export function niceTicks(min, max, target = 4) {

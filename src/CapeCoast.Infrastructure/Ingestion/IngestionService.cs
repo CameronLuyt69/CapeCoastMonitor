@@ -49,6 +49,15 @@ public class IngestionService
             return (fetched.Count, written, CountFlagged(valid.Select(v => v.QualityFlags)));
         }, ct);
 
+    public Task<IngestionResult> RunWeatherAsync(IWeatherSource source, CancellationToken ct) =>
+        RunAsync(source.Name, async (locs, runId, issuedAt, token) =>
+        {
+            var fetched = await source.FetchAsync(locs, token);
+            var valid = fetched.Select(ObservationValidator.Validate).ToList();
+            var written = await _observations.UpsertWeatherAsync(source.Name, issuedAt, runId, valid, token);
+            return (fetched.Count, written, CountFlagged(valid.Select(v => v.QualityFlags)));
+        }, ct);
+
     private static int CountFlagged(IEnumerable<string[]> flags) => flags.Count(f => f.Length > 0);
 
     private async Task<IngestionResult> RunAsync(string source,

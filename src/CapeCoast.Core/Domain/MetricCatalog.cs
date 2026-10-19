@@ -24,6 +24,12 @@ public static class MetricCatalog
         new MetricDef("wind_speed", "wind_observations", "speed_kmh", "km/h", "wind_daily", "speed"),
         new MetricDef("wind_gust", "wind_observations", "gust_kmh", "km/h", null, null),
         new MetricDef("wind_direction", "wind_observations", "direction_deg", "deg", null, null),
+        new MetricDef("air_temp", "weather_observations", "air_temp_c", "C", "weather_daily", "air_temp"),
+        new MetricDef("precipitation", "weather_observations", "precipitation_mm", "mm", "weather_daily", "precip"),
+        new MetricDef("uv_index", "weather_observations", "uv_index", "", "weather_daily", "uv"),
+        new MetricDef("visibility", "weather_observations", "visibility_m", "m", "weather_daily", "vis"),
+        new MetricDef("cloud_cover", "weather_observations", "cloud_cover_pct", "%", "weather_daily", "cloud"),
+        new MetricDef("humidity", "weather_observations", "humidity_pct", "%", "weather_daily", "humidity"),
     };
 
     public static MetricDef? Find(string key) => Series.FirstOrDefault(m => m.Key == key);

@@ -68,6 +68,22 @@ export function show(value, unit, digits = 1) {
   return r == null ? 'no data' : `${r} ${unit}`;
 }
 
+/** The WHO / WMO UV index bands. */
+export function uvCategory(index) {
+  if (index == null || Number.isNaN(index)) return '';
+  if (index < 3) return 'low';
+  if (index < 6) return 'moderate';
+  if (index < 8) return 'high';
+  if (index < 11) return 'very high';
+  return 'extreme';
+}
+
+/** Visibility arrives in metres: "850 m" below a kilometre, "12.4 km" above it. */
+export function visibilityText(metres) {
+  if (metres == null || Number.isNaN(metres)) return 'no data';
+  return metres < 1000 ? `${Math.round(metres)} m` : `${round(metres / 1000, 1)} km`;
+}
+
 export const STATUS = {
   ok: { label: 'Within guideline', glyph: '✓' },
   amber: { label: 'Above guideline', glyph: '!' },

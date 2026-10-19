@@ -14,7 +14,7 @@ Waves, wind and coastal water quality for Cape Town beaches on one map, with his
   <img src="docs/screenshots/map-mobile-panel.png" alt="Phone layout: the beach panel" width="240">
 </p>
 
-It pulls ocean and wind forecasts from Open-Meteo and the City of Cape Town's coastal water quality report, stores
+It pulls ocean, wind and weather forecasts from Open-Meteo and the City of Cape Town's coastal water quality report, stores
 everything in PostgreSQL with PostGIS and TimescaleDB, and shows it on a Leaflet map. Every number on screen can be traced:
 from a point on a chart to the ingestion run that wrote it, and from a water quality result to the City document it came from.
 
@@ -93,6 +93,7 @@ GRAFANA_ADMIN_PASSWORD=... python tools/check_dashboards.py      # run every das
 |---|---|---|
 | Waves, swell, sea temperature, sea level | [Open-Meteo Marine API](https://open-meteo.com/en/docs/marine-weather-api), model data from DWD and partner weather services | CC BY 4.0, free for non-commercial use, attribution required |
 | Wind speed, gusts, direction | [Open-Meteo Forecast API](https://open-meteo.com/) | Same |
+| Air temperature, rain, UV index, visibility, cloud cover, humidity | Open-Meteo Forecast API, a separate hourly call | Same. Model values, not measurements |
 | Water quality (enterococci) | City of Cape Town, [Coastal Water Quality Report](https://www.capetown.gov.za/Work%20and%20business/Commercial-health-and-safety/Environmental-health/coastal-water-quality) | Copyright City of Cape Town, see the note below |
 | Map | © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered with [Leaflet](https://leafletjs.com/) | ODbL, BSD-2 |
 
@@ -183,13 +184,20 @@ Swagger UI is at `/swagger`. Everything under `/api` is public and read-only exc
 
 - **Map:** markers use the City's status colour plus a distinct glyph and shape, so colour is not the only signal. A dashed ring
   marks a result older than 14 days, so an old green is never mistaken for a current one.
-- **Panel:** latest water quality with its age and source link, model conditions, a trend chart and the recent results.
+- **Panel:** latest water quality with its age and source link, model conditions (waves, swell, wind, air temperature, rain, UV,
+  visibility, cloud, humidity), a surf estimate, a trend chart for any of them and the recent results.
 - **Chart:** hourly line, each day's min to max as a band (so outliers show), the forecast shaded and water quality samples on the
   axis. Click a point, or use the arrow keys and Enter, to see the ingestion run that wrote it and the nearest water quality sample
   with its source document.
 - **Live updates:** Server-Sent Events trigger a refetch, falling back to polling if the stream drops.
 - **Also:** deep links (`#beach=muizenberg`), light and dark themes, keyboard support, phone layout with 16px gutters and no
   horizontal scroll.
+
+### Surf estimate
+
+A derived score from forecast swell, wind and which way the beach faces, with its working shown in the panel. It is labelled an
+estimate from the forecast, not a surf report, and is empty (not guessed) when an input is missing. The beach bearings are a
+crude default by coast until you set real ones. How it works: [docs/surf-score.md](docs/surf-score.md).
 
 ## Alerting
 
@@ -256,6 +264,11 @@ GitHub Actions builds, runs both test suites and checks formatting; a second wor
   could send a message twice. Delivery is at-least-once.
 - **Percentiles are estimates** from histogram buckets, coarse below about 5 ms.
 - **No browser end-to-end tests.** The UI was checked by hand in desktop and phone sizes, and its logic is unit tested.
+- **Looked into and not built:** official tide times, real wave or sea temperature measurements, E. coli, and crowd data. No source
+  I could verify and defend, or none that allows this use. What I found and what would unblock each is in
+  [docs/data-sources-research.md](docs/data-sources-research.md).
+- **The surf estimate is rough.** It uses forecast model values for the nearest grid cell and a coarse beach direction (a default
+  by coast until set per beach), so neighbouring beaches can show nearly the same score. See [docs/surf-score.md](docs/surf-score.md).
 - **Not a safety tool,** and not official tide data.
 
 ## Repository layout
@@ -267,7 +280,7 @@ docker/     Dockerfiles and the provisioned Grafana datasource and dashboards
 n8n/        Exported alert workflow
 tests/      xUnit tests, frontend node tests
 tools/      PdfProbe, dashboard checker, snapshot scripts
-docs/       alerts.md, observability.md, screenshots, probe responses
+docs/       alerts.md, observability.md, surf-score.md, data-sources-research.md, screenshots, probe responses
 site-data/  The static snapshot published to GitHub Pages
 ```
 
