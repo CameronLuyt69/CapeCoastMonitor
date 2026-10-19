@@ -21,6 +21,9 @@ public class DatabaseFixture : IAsyncLifetime
     public NpgsqlDataSource Db { get; private set; } = null!;
     public string ConnectionString { get; private set; } = "";
 
+    /// <summary>Each beach's bearing exactly as the migrations left it, before any test could change it.</summary>
+    public Dictionary<string, (double? Deg, string Source)> InitialFacing { get; private set; } = new();
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
@@ -28,6 +31,18 @@ public class DatabaseFixture : IAsyncLifetime
         ConnectionString = cs;
         Assert.True(Migrator.Run(cs, NullLogger.Instance), "migrations failed");
         Db = NpgsqlDataSource.Create(cs);
+
+        await using var conn = await Db.OpenConnectionAsync();
+        var rows = await conn.QueryAsync<(string Slug, double? Deg, string Source)>("SELECT slug, facing_deg::float8, facing_source FROM locations");
+        InitialFacing = rows.ToDictionary(r => r.Slug, r => (r.Deg, r.Source));
+    }
+
+    /// <summary>Puts every beach's bearing back as the migrations set it, for tests that change them.</summary>
+    public async Task RestoreFacingAsync()
+    {
+        await using var conn = await Db.OpenConnectionAsync();
+        foreach (var (slug, (deg, source)) in InitialFacing)
+            await conn.ExecuteAsync("UPDATE locations SET facing_deg = @deg, facing_source = @source WHERE slug = @slug", new { slug, deg, source });
     }
 
     public async Task DisposeAsync()

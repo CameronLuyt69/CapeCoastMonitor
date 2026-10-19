@@ -37,9 +37,9 @@ public class ApiTests : IAsyncLifetime
             DELETE FROM water_quality_samples; DELETE FROM source_documents; DELETE FROM alert_events;
             DELETE FROM alert_rules; DELETE FROM maintenance_windows; DELETE FROM ingestion_runs;
             -- put back anything a test may have edited on the shared beaches
-            UPDATE locations SET active = true, facing_deg = CASE coast WHEN 'Atlantic' THEN 270 WHEN 'False Bay' THEN 180 END,
-                facing_source = 'coast-default';
+            UPDATE locations SET active = true;
             UPDATE locations SET name = 'Llandudno' WHERE slug = 'llandudno'");
+        await _fx.RestoreFacingAsync();
 
         _runId = await conn.ExecuteScalarAsync<long>(
             "INSERT INTO ingestion_runs (source, status, finished_at, rows_fetched, rows_written) VALUES ('open-meteo-marine', 'succeeded', now(), 73, 73) RETURNING id");
@@ -201,9 +201,12 @@ public class ApiTests : IAsyncLifetime
     [Fact]
     public async Task The_surf_estimate_is_computed_from_the_current_swell_wind_and_the_beach_bearing()
     {
+        // pin the bearing so the arithmetic below doesn't depend on what the migrations chose for this beach
+        await using (var conn = await _fx.Db.OpenConnectionAsync())
+            await conn.ExecuteAsync("UPDATE locations SET facing_deg = 270, facing_source = 'coast-default' WHERE slug = 'clifton-4th'");
         var json = await ApiTestHost.Json(await Get("/api/locations"));
 
-        // clifton faces 270 (the Atlantic default), swell 1.0 m / 8 s from 270, wind 20 km/h from 180 (along the beach):
+        // clifton faces 270, swell 1.0 m / 8 s from 270, wind 20 km/h from 180 (along the beach):
         // size 28 + period 10 + wind 30 x 0.5 = 53
         var surf = Feature(json, "clifton-4th").GetProperty("properties").GetProperty("surf");
         Assert.Equal(53, surf.GetProperty("score").GetInt32());
@@ -259,8 +262,8 @@ public class ApiTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
         var body = await ApiTestHost.Json(put);
-        Assert.Equal(270, body.GetProperty("facingDeg").GetDouble());
-        Assert.Equal("coast-default", body.GetProperty("facingSource").GetString());
+        Assert.Equal(290, body.GetProperty("facingDeg").GetDouble());
+        Assert.Equal("osm-coastline", body.GetProperty("facingSource").GetString());
     }
 
     [Theory]

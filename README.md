@@ -196,8 +196,9 @@ Swagger UI is at `/swagger`. Everything under `/api` is public and read-only exc
 ### Surf estimate
 
 A derived score from forecast swell, wind and which way the beach faces, with its working shown in the panel. It is labelled an
-estimate from the forecast, not a surf report, and is empty (not guessed) when an input is missing. The beach bearings are a
-crude default by coast until you set real ones. How it works: [docs/surf-score.md](docs/surf-score.md).
+estimate from the forecast, not a surf report, and is empty (not guessed) when an input is missing. The beach bearings are
+estimated from the OpenStreetMap coastline (`tools/beach_facing.py`), good to about 20°, and Hout Bay has none until you set one.
+How it works: [docs/surf-score.md](docs/surf-score.md).
 
 ## Alerting
 
@@ -267,8 +268,9 @@ GitHub Actions builds, runs both test suites and checks formatting; a second wor
 - **Looked into and not built:** official tide times, real wave or sea temperature measurements, E. coli, and crowd data. No source
   I could verify and defend, or none that allows this use. What I found and what would unblock each is in
   [docs/data-sources-research.md](docs/data-sources-research.md).
-- **The surf estimate is rough.** It uses forecast model values for the nearest grid cell and a coarse beach direction (a default
-  by coast until set per beach), so neighbouring beaches can show nearly the same score. See [docs/surf-score.md](docs/surf-score.md).
+- **The surf estimate is rough.** It uses forecast model values for the nearest grid cell and beach bearings estimated from the
+  coastline (about 20° either way), so neighbouring beaches can show nearly the same score, and Hout Bay has no bearing yet. See
+  [docs/surf-score.md](docs/surf-score.md).
 - **Not a safety tool,** and not official tide data.
 
 ## Repository layout

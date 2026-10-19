@@ -133,7 +133,7 @@ export function createPanel(root, { onClose }) {
 
     const facing = surf.facingDeg == null
       ? 'The direction this beach faces has not been set.'
-      : `Beach faces ${Math.round(surf.facingDeg)}° ${{ 'coast-default': '(a rough default for this coast, not measured)', manual: '(set by hand)' }[surf.facingSource] ?? ''}`.trim();
+      : `Beach faces ${Math.round(surf.facingDeg)}° ${{ 'coast-default': '(a rough default for this coast, not measured)', 'osm-coastline': '(estimated from the OpenStreetMap coastline, give or take 20°)', manual: '(set by hand)' }[surf.facingSource] ?? ''}`.trim();
     card.append(el('p', { class: 'muted small' },
       'An estimate worked out from the forecast swell and wind, not a surf report. ', facing));
     return card;

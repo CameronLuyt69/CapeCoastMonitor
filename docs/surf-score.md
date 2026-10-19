@@ -65,21 +65,46 @@ These and many more cases are in `tests/CapeCoast.Tests/SurfScoreTests.cs`, each
 
 ## Which way each beach faces
 
-The model needs a bearing per beach, and the seed data only has a **crude default by coast**: 270° (west) for the Atlantic
-seaboard and 180° (south) for False Bay. Real beaches differ, for example the Simon's Town side of False Bay faces east. The
-API shows where each value came from (`facingSource`: `coast-default`, `manual` or `unset`) and the panel says so.
+The estimate needs a bearing per beach. Nine of the ten were worked out from the OpenStreetMap coastline with
+`tools/beach_facing.py`: OSM draws the coast with land on the left and sea on the right, so the bearing out to sea is the local
+coastline direction turned 90° clockwise. The tool averages the coastline within 150, 300 and 500 m of each beach and reports how
+much the answer moves, and each result was then checked against what the coast is actually like. They are rounded to 5° and are
+good to about 20° at best.
 
-Set a real bearing (read it from a map, then check it) with the admin API, signed in as Admin:
+| Beach | Bearing | Notes |
+|---|---|---|
+| Noordhoek | 270° W | Stable at every radius, a long open beach |
+| Muizenberg | 150° SSE | Stable, faces across False Bay |
+| Strand | 230° SW | Stable |
+| Camps Bay | 300° WNW | Close at every radius |
+| Llandudno | 290° WNW | 150 m and 300 m agree, 500 m drifts with the headlands |
+| Clifton 4th | 325° NW | A small pocket beach between boulders: 301° to 334° depending on the radius, so only roughly |
+| St James | 130° SE | 118° to 132°, the tidal pool walls add noise |
+| Fish Hoek | 100° E | Consistent, the bay faces east |
+| Seaforth | 35° NE | 30° to 38°, Simon's Bay opens to the north-east |
+| **Hout Bay** | **not set** | The City's sampling point is on the harbour wharf, so the coastline around it describes harbour walls and not the bay. The tool's answer (about 136°) is not usable. Hout Bay has no surf estimate until a bearing is set by hand |
+
+The panel says where a beach's bearing came from (`facingSource`: `osm-coastline`, `manual`, `coast-default` or `unset`).
+
+Check a bearing yourself, or set one, with the admin API signed in as Admin. Setting one marks it `manual`:
 
 ```bash
-curl -b cookies.txt -X PUT http://localhost:8088/api/admin/locations/6 \
+curl -b cookies.txt -X PUT http://localhost:8088/api/admin/locations/4 \
   -H "Content-Type: application/json" \
-  -d '{"name":"Muizenberg","coast":"False Bay","lon":18.470834,"lat":-34.108983,"citySiteCode":"CS34","facingDeg":200}'
+  -d '{"name":"Hout Bay","coast":"Atlantic","lon":18.34918168,"lat":-34.04741935,"citySiteCode":"HB13","facingDeg":210}'
 ```
 
+(The 210 there is only an example of the shape of the request, not a recommendation: read the direction the bay mouth faces from a map.)
+
 Leaving `facingDeg` out of an update keeps the current bearing. A new beach without one has no bearing and therefore no score.
+Re-run the tool with `python tools/beach_facing.py` (it needs the stack running and uses the public Overpass API gently, so run it by
+hand now and then). Map data is © OpenStreetMap contributors, ODbL.
 
 ## What it ignores
+
+Wave bending (refraction and diffraction): a swell arriving from the side can still wrap around a headland and reach a beach, and the
+simple exposure rule gives a swell more than 90° off the beach exactly zero. Beaches in a bay that are turned away from the main swell
+direction (False Bay beaches in a south-westerly, for example) can therefore score lower than a local would expect.
 
 Tide, wave quality at a particular break, local reef or sandbank shape, wind that varies across the bay, crowds, water quality and
 safety. It judges only swell size, period, direction and wind against one bearing. Treat it as a way to compare beaches and hours
