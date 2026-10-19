@@ -1,6 +1,6 @@
-import { api } from './api.js';
+import { api, isStatic } from './api.js';
 import { clear, el, link } from './dom.js';
-import { daysAgoText, formatDate, timeAgoText } from './format.js';
+import { daysAgoText, formatDate, formatDateTime, timeAgoText } from './format.js';
 import { startLive } from './live.js';
 import { createMap } from './map.js';
 import { createPanel } from './panel.js';
@@ -39,8 +39,8 @@ function selectBeach(slug) {
   if (window.matchMedia('(max-width: 860px)').matches) panelRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function setLive(state) {
-  const text = { live: 'Live updates', polling: 'Checking every minute', offline: 'Offline' }[state];
+function setLive(state, detail = '') {
+  const text = { live: 'Live updates', polling: 'Checking every minute', offline: 'Offline', snapshot: `Snapshot${detail}` }[state];
   liveBadge.textContent = text;
   liveBadge.dataset.state = state;
 }
@@ -48,14 +48,16 @@ function setLive(state) {
 async function refresh() {
   try {
     const [locations, status] = await Promise.all([api.locations(), api.status().catch(() => null)]);
-    features = locations.features;
+    // an export made without the City's results says so, and the panel and map need to know
+    features = locations.features.map((f) => ({ ...f, withheld: locations.waterQualityIncluded === false }));
     map.update(features);
     if (panel.selected) {
       const current = features.find((f) => f.id === panel.selected);
       if (current) panel.update(current);
     }
     renderStatus(status, features);
-    if (liveBadge.dataset.state === 'offline') setLive('polling');
+    if (isStatic) setLive('snapshot', ` from ${formatDateTime(locations.serverTime)}`);
+    else if (liveBadge.dataset.state === 'offline') setLive('polling');
   } catch {
     setLive('offline');
   }
@@ -85,8 +87,13 @@ function newestSample(features) {
 }
 
 await refresh();
-startLive({ onUpdate: refresh, onState: setLive });
-setLive('polling');
+if (isStatic) {
+  // nothing changes in a snapshot, so no stream and no polling, and there is no API to point at
+  document.querySelectorAll('[data-api-only]').forEach((node) => node.remove());
+} else {
+  startLive({ onUpdate: refresh, onState: setLive });
+  setLive('polling');
+}
 
 // deep link: #beach=muizenberg
 const wanted = new URLSearchParams(location.hash.slice(1)).get('beach');

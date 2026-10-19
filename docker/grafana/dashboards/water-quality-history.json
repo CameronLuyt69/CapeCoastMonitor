@@ -538,7 +538,8 @@
             },
             "axisPlacement": "auto",
             "gradientMode": "none"
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },

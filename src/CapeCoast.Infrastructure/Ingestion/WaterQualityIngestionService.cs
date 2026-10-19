@@ -49,7 +49,9 @@ public class WaterQualityIngestionService
         }
         using var scope = _log.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = correlationId, ["Source"] = source.Name, ["RunId"] = runId
+            ["CorrelationId"] = correlationId,
+            ["Source"] = source.Name,
+            ["RunId"] = runId
         });
 
         try

@@ -52,8 +52,12 @@ public static class ApiApp
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(o =>
         {
-            o.SwaggerDoc("v1", new() { Title = "Cape Coast Monitor API", Version = "v1",
-                Description = "Ocean conditions, wind and coastal water quality for Cape Town beaches. Public and read-only, except /api/admin." });
+            o.SwaggerDoc("v1", new()
+            {
+                Title = "Cape Coast Monitor API",
+                Version = "v1",
+                Description = "Ocean conditions, wind and coastal water quality for Cape Town beaches. Public and read-only, except /api/admin."
+            });
         });
 
         var app = builder.Build();

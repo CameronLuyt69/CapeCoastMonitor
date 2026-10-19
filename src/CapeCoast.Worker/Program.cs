@@ -1,11 +1,11 @@
 using System.Text.Json;
 using CapeCoast.Infrastructure;
 using CapeCoast.Infrastructure.Alerts;
+using CapeCoast.Infrastructure.Export;
 using CapeCoast.Infrastructure.Migrations;
 using CapeCoast.Infrastructure.Sources;
 using CapeCoast.Infrastructure.Telemetry;
 using CapeCoast.Worker.Jobs;
-using Microsoft.Extensions.Options;
 using Quartz;
 using Serilog;
 
@@ -26,6 +26,7 @@ builder.Services.AddSerilog((services, cfg) =>
 builder.Services.AddCapeCoastData(builder.Configuration);
 builder.Services.AddOpenMeteoSources(builder.Configuration);
 builder.Services.AddCapeCoastAlerts(builder.Configuration);
+builder.Services.AddCapeCoastExport(builder.Configuration);
 builder.Services.AddCapeCoastTelemetry(builder.Configuration, "worker", instrumentIncomingRequests: false);
 
 var sources = builder.Configuration.GetSection(SourcesOptions.Section).Get<SourcesOptions>() ?? new SourcesOptions();
@@ -40,6 +41,10 @@ builder.Services.AddQuartz(q =>
     if (sources.CityWaterQuality.Enabled)
         Schedule<WaterQualityIngestJob>(q, "water-quality", sources.CityWaterQuality.IntervalMinutes, startDelaySeconds: 30);
 
+    var export = builder.Configuration.GetSection(ExportOptions.Section).Get<ExportOptions>();
+    if (!string.IsNullOrWhiteSpace(export?.Directory))
+        Schedule<StaticExportJob>(q, "static-export", export.IntervalMinutes, startDelaySeconds: 90);
+
     Schedule<FreshnessJob>(q, "freshness", 15, startDelaySeconds: 60);
 });
 builder.Services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
@@ -49,7 +54,15 @@ var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("St
 
 if (args.Contains("--migrate-only"))
 {
-    return Migrator.Run(connectionString, logger) ? 0 : 1;
+    try
+    {
+        return Migrator.Run(connectionString, logger) ? 0 : 1;
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Could not reach the database to run migrations");
+        return 1;
+    }
 }
 
 // run the rules once and exit, handy after editing a rule or when checking the webhook setup
@@ -57,6 +70,17 @@ if (args.Contains("--evaluate-alerts"))
 {
     var summary = await host.Services.GetRequiredService<AlertService>().EvaluateAllAsync(CancellationToken.None);
     Console.WriteLine(JsonSerializer.Serialize(summary));
+    return 0;
+}
+
+// write the static snapshot once and exit: --export-static <directory> [--with-water-quality]
+var exportAt = Array.IndexOf(args, "--export-static");
+if (exportAt >= 0)
+{
+    if (exportAt + 1 >= args.Length) { Console.Error.WriteLine("usage: --export-static <directory> [--with-water-quality]"); return 2; }
+    var result = await host.Services.GetRequiredService<StaticExporter>()
+        .ExportAsync(args[exportAt + 1], CancellationToken.None, args.Contains("--with-water-quality") ? true : null);
+    Console.WriteLine(JsonSerializer.Serialize(result));
     return 0;
 }
 

@@ -3,6 +3,7 @@ namespace CapeCoast.Api;
 public class AuthOptions
 {
     public const string Section = "Auth";
+    public const string PlaceholderPassword = "change-me";
 
     // Login stays switched off for a role until its password is set in the environment.
     public string? AdminUsername { get; set; }

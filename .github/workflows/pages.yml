@@ -1,0 +1,50 @@
+name: pages
+
+# Publishes the map as a static site from the snapshot committed in site-data/.
+# The snapshot is produced on the server, see tools/publish-snapshot.ps1 and the README.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site-data/**"
+      - "src/CapeCoast.Api/wwwroot/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check there is a snapshot to publish
+        run: test -f site-data/locations.geojson
+
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp -r src/CapeCoast.Api/wwwroot/. _site/
+          mkdir _site/data
+          cp -r site-data/. _site/data/
+          # the same page, pointed at the exported files instead of the API
+          echo 'window.CCM = { staticData: "data" };' > _site/js/config.js
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

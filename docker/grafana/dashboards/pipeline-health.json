@@ -40,18 +40,102 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "\nWITH last AS (\n  SELECT DISTINCT ON (source) source, status, started_at, rows_written\n  FROM ingestion_runs ORDER BY source, started_at DESC),\nok AS (\n  SELECT source, max(finished_at) AS last_success FROM ingestion_runs WHERE (status = 'succeeded' OR (status = 'flagged' AND rows_written > 0)) GROUP BY source)\nSELECT l.source AS \"Source\",\n       CASE WHEN ok.last_success IS NULL OR now() - ok.last_success > 3 * (CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END) * interval '1 minute'\n            THEN 'STALE' ELSE 'ok' END AS \"Freshness\",\n       l.status AS \"Last run\",\n       l.started_at AS \"Started\",\n       ok.last_success AS \"Last delivered data\",\n       round(EXTRACT(EPOCH FROM (now() - ok.last_success)) / 60) AS \"Minutes since\",\n       CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END AS \"Expected every (min)\",\n       l.rows_written AS \"Rows changed\"\nFROM last l LEFT JOIN ok USING (source) ORDER BY l.source\n"
+          "rawSql": "\nWITH last AS (\n  SELECT DISTINCT ON (source) source, status, started_at, rows_written\n  FROM ingestion_runs ORDER BY source, started_at DESC),\nok AS (\n  SELECT source, max(finished_at) AS last_success FROM ingestion_runs WHERE (status = 'succeeded' OR (status = 'flagged' AND rows_written > 0)) GROUP BY source)\nSELECT l.source AS \"Source\",\n       CASE WHEN ok.last_success IS NULL OR now() - ok.last_success > 3 * (CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END) * interval '1 minute'\n            THEN 'STALE' ELSE 'ok' END AS \"Freshness\",\n       l.status AS \"Last run\",\n       to_char(l.started_at, 'YYYY-MM-DD HH24:MI:SS') AS \"Started\",\n       to_char(ok.last_success, 'YYYY-MM-DD HH24:MI:SS') AS \"Last delivered data\",\n       round(EXTRACT(EPOCH FROM (now() - ok.last_success)) / 60) AS \"Minutes since\",\n       CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END AS \"Expected every (min)\",\n       l.rows_written AS \"Rows changed\"\nFROM last l LEFT JOIN ok USING (source) ORDER BY l.source\n"
         }
       ],
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 14,
+        "w": 18,
         "h": 7
       },
       "fieldConfig": {
         "defaults": {},
         "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 215
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Last run"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 105
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Started"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 165
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Last delivered data"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 175
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Minutes since"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Expected every (min)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 160
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rows changed"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 115
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byName",
@@ -81,6 +165,10 @@
                 "value": {
                   "type": "color-text"
                 }
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           }
@@ -114,9 +202,9 @@
         }
       ],
       "gridPos": {
-        "x": 14,
+        "x": 18,
         "y": 0,
-        "w": 5,
+        "w": 3,
         "h": 7
       },
       "fieldConfig": {
@@ -174,9 +262,9 @@
         }
       ],
       "gridPos": {
-        "x": 19,
+        "x": 21,
         "y": 0,
-        "w": 5,
+        "w": 3,
         "h": 7
       },
       "fieldConfig": {
@@ -253,7 +341,8 @@
             },
             "axisPlacement": "auto",
             "gradientMode": "none"
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {
@@ -348,7 +437,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "auto",
             "pointSize": 6,
             "spanNulls": false,
@@ -409,7 +498,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "auto",
             "pointSize": 6,
             "spanNulls": false,
@@ -469,7 +558,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "auto",
             "pointSize": 6,
             "spanNulls": false,
@@ -530,7 +619,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "auto",
             "pointSize": 6,
             "spanNulls": false,
@@ -647,7 +736,8 @@
             },
             "axisPlacement": "auto",
             "gradientMode": "none"
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -682,7 +772,7 @@
           "format": "time_series",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "SELECT time, attributes->>'route' AS metric, value * 1000 AS value FROM metric_points WHERE $__timeFilter(time) AND service = 'api' AND name = 'http.server.request.duration.p95' AND attributes ? 'route' ORDER BY 1"
+          "rawSql": "SELECT time, attributes->>'route' AS metric, value * 1000 AS value FROM metric_points WHERE $__timeFilter(time) AND service = 'api' AND name = 'http.server.request.duration.p95' AND attributes ? 'route' AND attributes->>'route' <> '/api/stream' ORDER BY 1"
         }
       ],
       "gridPos": {
@@ -697,7 +787,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "auto",
             "pointSize": 6,
             "spanNulls": false,
@@ -722,7 +812,8 @@
           "mode": "multi",
           "sort": "none"
         }
-      }
+      },
+      "description": "Per route, with methods and status codes merged. The event stream is left out because a stream stays open for as long as a browser does."
     },
     {
       "id": 11,
@@ -767,7 +858,8 @@
             },
             "axisPlacement": "auto",
             "gradientMode": "none"
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },

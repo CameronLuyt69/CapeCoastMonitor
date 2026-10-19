@@ -10,6 +10,9 @@ import {
 const RANGE_BACK_DAYS = 7;
 const RANGE_FORWARD_DAYS = 3;
 
+// in a snapshot there is no API to open, so a run is shown as text
+const runLink = (id, text) => (api.isStatic ? el('span', {}, text) : link(`/api/runs/${id}`, text));
+
 export function createPanel(root, { onClose }) {
   let current = null;       // { feature, metric, samples, token }
   let token = 0;            // guards against a slow response from a beach the user has since left
@@ -46,7 +49,7 @@ export function createPanel(root, { onClose }) {
           el('h2', { id: 'panel-title', tabindex: '-1' }, p.name),
           el('span', { class: 'badge' }, `${p.coast} coast`)),
         el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close beach details', onclick: close }, '✕')),
-      waterQualityCard(p.waterQuality),
+      waterQualityCard(p.waterQuality, feature.withheld === true),
       conditionsCard(p),
       el('section', { class: 'card', 'aria-labelledby': 'trend-h' },
         el('h3', { id: 'trend-h' }, 'Trend'),
@@ -72,10 +75,16 @@ export function createPanel(root, { onClose }) {
     return select;
   }
 
-  function waterQualityCard(wq) {
+  function waterQualityCard(wq, withheld) {
     const now = new Date();
     const status = waterQualityStatus(wq, now);
     const card = el('section', { class: 'card', 'aria-labelledby': 'wqc-h' }, el('h3', { id: 'wqc-h' }, 'Water quality'));
+
+    if (withheld) {
+      card.append(el('p', {}, 'The City of Cape Town’s water quality results are not included in this public snapshot. ',
+        'Its terms don’t allow them to be redistributed without written permission.'));
+      return card;
+    }
 
     if (!wq) {
       card.append(el('p', {}, 'The City does not publish a sampling site for this beach in the report we use.'));
@@ -152,6 +161,10 @@ export function createPanel(root, { onClose }) {
     const host = root.querySelector('#wq-list');
     if (!host) return;
     clear(host);
+    if (wq?.withheld) {
+      host.append(el('p', { class: 'muted' }, 'Not included in this public snapshot.'));
+      return;
+    }
     if (!wq) {
       host.append(el('p', { class: 'warn' }, 'Could not load water quality results. ', el('button', { type: 'button', class: 'linkish', onclick: load }, 'Try again')));
       return;
@@ -172,7 +185,7 @@ export function createPanel(root, { onClose }) {
           el('span', { class: 'muted' }, ` · ${formatDate(s.sampledAt)} (${daysAgoText(s.sampledAt, now)})`)),
         el('span', { class: 'sample-links' },
           s.document?.url ? link(s.document.url, 'City report') : null,
-          s.ingestionRunId ? link(`/api/runs/${s.ingestionRunId}`, `run #${s.ingestionRunId}`) : null)));
+          s.ingestionRunId ? runLink(s.ingestionRunId, `run #${s.ingestionRunId}`) : null)));
     }
     host.append(list,
       el('p', { class: 'muted small' }, `Single-sample guideline: below ${wq.thresholdCfu} cfu/100 ml is acceptable for recreational use, per the City. ` +
@@ -186,7 +199,7 @@ export function createPanel(root, { onClose }) {
 
     const slug = current.feature.properties.slug;
     const metric = current.metric;
-    const now = new Date();
+    const now = api.now();
     const from = new Date(now.getTime() - RANGE_BACK_DAYS * 86400000);
     const to = new Date(now.getTime() + RANGE_FORWARD_DAYS * 86400000);
 
@@ -227,7 +240,7 @@ export function createPanel(root, { onClose }) {
       try {
         const run = await api.run(point.ingestionRunId);
         runLine.replaceChildren(
-          'Written by ', link(`/api/runs/${run.id}`, `ingestion run #${run.id}`),
+          'Written by ', runLink(run.id, `ingestion run #${run.id}`),
           ` (${run.source}, ${run.status}, finished ${run.finishedAt ? timeAgoText(run.finishedAt) : 'still running'}, ${run.rowsWritten} rows changed).`);
       } catch {
         runLine.textContent = `Written by ingestion run #${point.ingestionRunId} (details unavailable).`;
@@ -257,7 +270,7 @@ export function createPanel(root, { onClose }) {
       apart != null ? ` · ${apart} day${apart === 1 ? '' : 's'} from this point` : '',
       ' · ',
       s.document?.url ? link(s.document.url, 'source document') : 'no document',
-      s.ingestionRunId ? [' · ', link(`/api/runs/${s.ingestionRunId}`, `ingestion run #${s.ingestionRunId}`)] : '');
+      s.ingestionRunId ? [' · ', runLink(s.ingestionRunId, `ingestion run #${s.ingestionRunId}`)] : '');
   }
 
   return { open, close, update, get selected() { return current?.feature.id ?? null; } };

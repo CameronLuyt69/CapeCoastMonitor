@@ -68,3 +68,13 @@ test('the staleness line is 14 days', () => {
 function pick({ key, stale }) {
   return { key, stale };
 }
+
+test('a snapshot without water quality shows its own status, never "no sampling site"', () => {
+  const status = waterQualityStatus({ sampledAt: '2026-10-15T00:00:00Z', rating: 'Green' }, now, true);
+
+  assert.equal(status.key, 'withheld');
+  assert.equal(status.stale, false);
+  assert.match(status.label, /not in this snapshot/);
+  assert.equal(waterQualityStatus(null, now, true).key, 'withheld');
+  assert.equal(waterQualityStatus(null, now, false).key, 'none');
+});

@@ -113,11 +113,11 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
+          "unit": "suffix: m",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "never",
             "pointSize": 6,
             "spanNulls": false,
@@ -142,6 +142,10 @@
                 "value": 0
               },
               {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
+              },
+              {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
@@ -154,7 +158,7 @@
               },
               {
                 "id": "custom.fillOpacity",
-                "value": 12
+                "value": 18
               }
             ]
           },
@@ -167,6 +171,10 @@
               {
                 "id": "custom.lineWidth",
                 "value": 0
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
               },
               {
                 "id": "color",
@@ -236,11 +244,11 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
+          "unit": "suffix: m",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "never",
             "pointSize": 6,
             "spanNulls": false,
@@ -339,7 +347,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "never",
             "pointSize": 6,
             "spanNulls": false,
@@ -512,7 +520,7 @@
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "never",
             "pointSize": 6,
             "spanNulls": false,
@@ -537,6 +545,10 @@
                 "value": 0
               },
               {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
+              },
+              {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
@@ -549,7 +561,7 @@
               },
               {
                 "id": "custom.fillOpacity",
-                "value": 12
+                "value": 18
               }
             ]
           },
@@ -562,6 +574,10 @@
               {
                 "id": "custom.lineWidth",
                 "value": 0
+              },
+              {
+                "id": "custom.lineInterpolation",
+                "value": "stepAfter"
               },
               {
                 "id": "color",
@@ -619,11 +635,11 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "m",
+          "unit": "suffix: m",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
-            "fillOpacity": 8,
+            "fillOpacity": 0,
             "showPoints": "never",
             "pointSize": 6,
             "spanNulls": false,

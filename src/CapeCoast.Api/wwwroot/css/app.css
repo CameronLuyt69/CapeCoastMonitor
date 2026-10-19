@@ -105,6 +105,7 @@ h1, h2, h3, h4, p, ol, ul, dl { margin: 0; }
 .live[data-state="live"]::before { background: var(--ok); }
 .live[data-state="polling"]::before { background: var(--amber); }
 .live[data-state="offline"]::before { background: var(--red); }
+.live[data-state="snapshot"]::before { background: var(--accent); }
 
 .disclaimer {
   padding: 8px var(--gutter);
@@ -190,6 +191,7 @@ select {
 .pin-red { --pin: var(--red); border-radius: 6px; }
 .pin-unknown { --pin: var(--unknown); }
 .pin-none { --pin: var(--none); opacity: 0.8; }
+.pin-withheld { --pin: var(--none); opacity: 0.85; }
 .pin-stale { border-style: dashed; border-color: var(--text); }
 .pin-selected { transform: scale(1.22); outline: 3px solid var(--focus); outline-offset: 2px; }
 .pin-small { width: 22px; height: 22px; font-size: 12px; border-width: 2px; flex: none; box-shadow: none; }
@@ -205,6 +207,9 @@ select {
 .legend:not([open]) .legend-title { margin-bottom: 0; }
 .legend { max-width: min(240px, 70vw); }
 .legend-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.legend-withheld { display: none; }
+.legend.withheld .legend-withheld { display: flex; }
+.legend.withheld .legend-row:not(.legend-withheld) { display: none; }
 .legend-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
 .leaflet-control-attribution { font-size: 0.7rem; }
 .leaflet-container { font: inherit; background: var(--surface-2); }

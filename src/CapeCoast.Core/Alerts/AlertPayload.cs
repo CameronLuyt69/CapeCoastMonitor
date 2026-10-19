@@ -35,7 +35,7 @@ public record AlertPayload(
         string unit, Verdict? verdict, string? publicUrl)
     {
         var value = verdict?.Value ?? incident.PeakValue;
-        var summary = Summarise(eventName, rule, location, unit, value, verdict);
+        var summary = Summarise(eventName, rule, location, unit, value);
         var link = string.IsNullOrWhiteSpace(publicUrl) ? null : $"{publicUrl.TrimEnd('/')}/#beach={location.Slug}";
 
         return new AlertPayload(
@@ -58,7 +58,7 @@ public record AlertPayload(
             Disclaimer: DisclaimerText);
     }
 
-    private static string Summarise(string eventName, AlertRule rule, AlertLocation location, string unit, double? value, Verdict? verdict)
+    private static string Summarise(string eventName, AlertRule rule, AlertLocation location, string unit, double? value)
     {
         var shown = value is null ? "no value" : $"{Math.Round(value.Value, 2)} {unit}";
         var what = rule.IsBaseline

@@ -1,4 +1,5 @@
 using CapeCoast.Core.Sources;
+using CapeCoast.Infrastructure.Export;
 using CapeCoast.Infrastructure.Ingestion;
 using CapeCoast.Infrastructure.Sources;
 using CapeCoast.Infrastructure.Sources.WaterQuality;
@@ -61,6 +62,25 @@ public class WaterQualityIngestJob : IJob
     {
         foreach (var source in _sources)
             await _ingestion.RunAsync(source, context.CancellationToken);
+    });
+}
+
+[DisallowConcurrentExecution]
+public class StaticExportJob : IJob
+{
+    private readonly StaticExporter _exporter;
+    private readonly ExportOptions _options;
+
+    public StaticExportJob(StaticExporter exporter, IOptions<ExportOptions> options)
+    {
+        _exporter = exporter;
+        _options = options.Value;
+    }
+
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("static-export", async () =>
+    {
+        if (!string.IsNullOrWhiteSpace(_options.Directory))
+            await _exporter.ExportAsync(_options.Directory, context.CancellationToken);
     });
 }
 

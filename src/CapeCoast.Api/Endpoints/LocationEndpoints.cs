@@ -1,6 +1,7 @@
 using System.Globalization;
 using CapeCoast.Core.Domain;
 using CapeCoast.Infrastructure.Data;
+using CapeCoast.Infrastructure.Presentation;
 using Microsoft.Extensions.Options;
 
 namespace CapeCoast.Api.Endpoints;
@@ -37,74 +38,8 @@ public static class LocationEndpoints
 
     private static async Task<IResult> GetLocations(ReadRepository repo, IOptions<WaterQualityDisplayOptions> wq, CancellationToken ct)
     {
-        var threshold = wq.Value.SingleSampleThresholdCfu;
         var rows = await repo.LatestConditionsAsync(ct);
-
-        var features = rows.Select(r => new
-        {
-            type = "Feature",
-            id = r.Slug,
-            geometry = new { type = "Point", coordinates = new[] { r.Lon, r.Lat } },
-            properties = new
-            {
-                slug = r.Slug,
-                name = r.Name,
-                coast = r.Coast,
-                citySiteCode = r.CitySiteCode,
-                marine = r.MarineAt is null ? null : new
-                {
-                    observedAt = r.MarineAt,
-                    forecastIssuedAt = r.MarineIssuedAt,
-                    waveHeightM = r.WaveHeightM,
-                    swellHeightM = r.SwellHeightM,
-                    swellPeriodS = r.SwellPeriodS,
-                    swellDirectionDeg = r.SwellDirectionDeg,
-                    windWaveHeightM = r.WindWaveHeightM,
-                    seaTempC = r.SeaTempC,
-                    // an approximate proxy from the marine model, not official tide data
-                    seaLevelMslApproxM = r.SeaLevelM,
-                },
-                wind = r.WindAt is null ? null : new
-                {
-                    observedAt = r.WindAt,
-                    forecastIssuedAt = r.WindIssuedAt,
-                    speedKmh = r.SpeedKmh,
-                    gustKmh = r.GustKmh,
-                    directionDeg = r.DirectionDeg,
-                },
-                waterQuality = r.WqSampledAt is null ? null : new
-                {
-                    sampleId = r.WqId,
-                    sampledAt = r.WqSampledAt,
-                    publishedAt = r.WqPublishedAt,
-                    enterococciCfu100ml = r.WqCfu,
-                    qualifier = r.WqQualifier,
-                    rating = r.WqRating,
-                    band = WaterQualityBand(r.WqCfu, r.WqQualifier, threshold),
-                    documentUrl = r.WqDocumentUrl,
-                },
-            },
-        });
-
-        return Results.Json(new
-        {
-            type = "FeatureCollection",
-            serverTime = DateTime.UtcNow,
-            waterQualityThresholdCfu = threshold,
-            features,
-        });
-    }
-
-    /// <summary>ok, exceeds or unknown, against the configured single-sample threshold.</summary>
-    public static string WaterQualityBand(int? cfu, string? qualifier, int threshold)
-    {
-        if (cfu is null) return "unknown";
-        return qualifier switch
-        {
-            ">" => cfu >= threshold ? "exceeds" : "unknown",
-            "<" => cfu <= threshold ? "ok" : "unknown",
-            _ => cfu > threshold ? "exceeds" : "ok",
-        };
+        return Results.Json(Shapes.Locations(rows, wq.Value.SingleSampleThresholdCfu, includeWaterQuality: true, DateTime.UtcNow));
     }
 
     private static async Task<IResult> GetHistory(string slug, string? metric, string? from, string? to, string? interval,
@@ -150,21 +85,7 @@ public static class LocationEndpoints
         var truncated = points.Count > MaxPoints;
         if (truncated) points = points.Take(MaxPoints).ToList();
 
-        object output = chosen == "raw"
-            ? points.Select(p => new { t = p.T, value = p.Value, ingestionRunId = p.IngestionRunId, flags = p.QualityFlags })
-            : points.Select(p => new { t = p.T, min = p.Min, max = p.Max, avg = p.Avg });
-
-        return Results.Json(new
-        {
-            location = new { slug = location.Slug, name = location.Name },
-            metric = def!.Key,
-            unit = def.Unit,
-            interval = chosen,
-            from = fromUtc,
-            to = toUtc,
-            truncated,
-            points = output,
-        });
+        return Results.Json(Shapes.History(location, def!, chosen, fromUtc, toUtc, truncated, points));
     }
 
     private static DateTime ParseTime(string? text, DateTime fallback, string name, Dictionary<string, string[]> errors)
@@ -186,49 +107,14 @@ public static class LocationEndpoints
         var location = await repo.FindLocationAsync(slug, ct);
         if (location is null) return Results.NotFound(new { error = "unknown beach" });
 
-        var threshold = wq.Value.SingleSampleThresholdCfu;
         var rows = await repo.WaterQualityAsync(location.Id, limit ?? 10, ct);
-
-        return Results.Json(new
-        {
-            location = new { slug = location.Slug, name = location.Name },
-            thresholdCfu = threshold,
-            samples = rows.Select(s => new
-            {
-                id = s.Id,
-                sampledAt = s.SampledAt,
-                publishedAt = s.PublishedAt,
-                enterococciCfu100ml = s.Cfu,
-                qualifier = s.Qualifier,
-                rating = s.Rating,
-                band = WaterQualityBand(s.Cfu, s.Qualifier, threshold),
-                ingestionRunId = s.IngestionRunId,
-                // the City's own URL, the stored copy is not served
-                document = s.DocumentId is null ? null : new
-                {
-                    id = s.DocumentId,
-                    title = s.DocumentTitle,
-                    url = s.DocumentUrl,
-                    fetchedAt = s.DocumentFetchedAt,
-                },
-            }),
-        });
+        return Results.Json(Shapes.WaterQuality(location, rows, wq.Value.SingleSampleThresholdCfu));
     }
 
     private static async Task<IResult> GetRun(long id, ReadRepository repo, CancellationToken ct)
     {
         var run = await repo.RunAsync(id, ct);
         if (run is null) return Results.NotFound(new { error = "unknown run" });
-        return Results.Json(new
-        {
-            id = run.Id,
-            source = run.Source,
-            startedAt = run.StartedAt,
-            finishedAt = run.FinishedAt,
-            status = run.Status,
-            rowsFetched = run.RowsFetched,
-            rowsWritten = run.RowsWritten,
-            message = run.ErrorMessage is { Length: > 300 } m ? m[..300] : run.ErrorMessage,
-        });
+        return Results.Json(Shapes.Run(run));
     }
 }

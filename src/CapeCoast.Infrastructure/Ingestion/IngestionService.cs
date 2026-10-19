@@ -3,7 +3,6 @@ using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Data;
-using CapeCoast.Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace CapeCoast.Infrastructure.Ingestion;
@@ -64,7 +63,9 @@ public class IngestionService
         var clock = Stopwatch.StartNew();
         using var scope = _log.BeginScope(new Dictionary<string, object>
         {
-            ["CorrelationId"] = correlationId, ["Source"] = source, ["RunId"] = runId
+            ["CorrelationId"] = correlationId,
+            ["Source"] = source,
+            ["RunId"] = runId
         });
 
         try

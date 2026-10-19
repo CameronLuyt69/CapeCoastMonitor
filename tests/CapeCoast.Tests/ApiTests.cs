@@ -342,8 +342,15 @@ public class ApiTests : IAsyncLifetime
 
     private static object ValidRule() => new
     {
-        name = "Big swell", metric = "swell_height", ruleType = "static", @operator = ">", threshold = 4.5,
-        durationMinutes = 60, severity = "warning", cooldownMinutes = 120, enabled = true,
+        name = "Big swell",
+        metric = "swell_height",
+        ruleType = "static",
+        @operator = ">",
+        threshold = 4.5,
+        durationMinutes = 60,
+        severity = "warning",
+        cooldownMinutes = 120,
+        enabled = true,
     };
 
     [Fact]
@@ -357,8 +364,13 @@ public class ApiTests : IAsyncLifetime
 
         var update = await admin.PutAsJsonAsync($"/api/admin/alert-rules/{id}", new
         {
-            name = "Big swell", metric = "swell_height", ruleType = "baseline", @operator = ">", threshold = 50,
-            severity = "critical", enabled = false,
+            name = "Big swell",
+            metric = "swell_height",
+            ruleType = "baseline",
+            @operator = ">",
+            threshold = 50,
+            severity = "critical",
+            enabled = false,
         });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         var updated = await ApiTestHost.Json(update);
@@ -399,7 +411,11 @@ public class ApiTests : IAsyncLifetime
 
         var response = await admin.PostAsJsonAsync("/api/admin/alert-rules", new
         {
-            name = "Single sample guideline", metric = "enterococci", @operator = ">", threshold = 240, severity = "critical",
+            name = "Single sample guideline",
+            metric = "enterococci",
+            @operator = ">",
+            threshold = 240,
+            severity = "critical",
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -579,6 +595,16 @@ public class ApiRateLimitTests
         {
             foreach (var r in open) r.Dispose();
         }
+    }
+
+    [Fact]
+    public async Task The_placeholder_password_from_env_example_never_works()
+    {
+        await using var host = await ApiTestHost.StartAsync(_fx.ConnectionString, "--Auth:AdminPassword=change-me");
+
+        var response = await host.Client.PostAsJsonAsync("/api/auth/login", new { username = "admin", password = "change-me" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]

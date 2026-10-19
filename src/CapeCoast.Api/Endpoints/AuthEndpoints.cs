@@ -17,7 +17,7 @@ public static class AuthEndpoints
 
         auth.MapPost("/login", Login).RequireRateLimiting(RateLimits.Login)
             .WithSummary("Sign in as Viewer or Admin. Sets an HttpOnly cookie.");
-        auth.MapPost("/logout", (HttpContext http) => Logout(http)).RequireRateLimiting(RateLimits.Public);
+        auth.MapPost("/logout", (Delegate)Logout).RequireRateLimiting(RateLimits.Public);
         auth.MapGet("/me", Me).RequireRateLimiting(RateLimits.Public);
     }
 
@@ -63,6 +63,8 @@ public static class AuthEndpoints
     private static bool Matches(string username, string password, string? expectedUser, string? expectedPassword)
     {
         if (string.IsNullOrEmpty(expectedUser) || string.IsNullOrEmpty(expectedPassword)) return false;
+        // the placeholder from .env.example is public knowledge, so it never counts as a real password
+        if (expectedPassword == AuthOptions.PlaceholderPassword) return false;
         // hash first so the comparison is fixed-length and constant time whatever was typed
         var user = CryptographicOperations.FixedTimeEquals(Hash(username), Hash(expectedUser));
         var pass = CryptographicOperations.FixedTimeEquals(Hash(password), Hash(expectedPassword));

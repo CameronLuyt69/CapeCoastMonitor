@@ -32,7 +32,6 @@ public record ReportSite(
     DateOnly? LatestDate,
     SampleValue? Latest,
     string? Status,
-    DateOnly? LastFailure,
     IReadOnlyList<DatedSample> History,
     IReadOnlyList<string> Problems)
 {

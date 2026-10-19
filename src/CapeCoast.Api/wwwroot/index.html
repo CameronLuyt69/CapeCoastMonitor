@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/app.css">
   <script src="js/theme-init.js"></script>
+  <script src="js/config.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -29,7 +30,7 @@
   <main class="layout">
     <section class="map-wrap" aria-label="Map of beaches">
       <div id="map"></div>
-      <noscript><p class="warn">The map needs JavaScript. The data is also available at <a href="/swagger">/swagger</a>.</p></noscript>
+      <noscript><p class="warn">The map needs JavaScript.</p></noscript>
     </section>
     <aside id="panel" class="panel" aria-label="Beach details" hidden></aside>
   </main>
@@ -45,7 +46,7 @@
       Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors, rendered with
       <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a>.
     </p>
-    <p>API documentation: <a href="/swagger">/swagger</a>. No cookies are set for visitors and nothing is tracked.</p>
+    <p><span data-api-only>API documentation: <a href="/swagger">/swagger</a>. </span>No cookies are set for visitors and nothing is tracked.</p>
   </footer>
 
   <script src="vendor/leaflet/leaflet.js"></script>

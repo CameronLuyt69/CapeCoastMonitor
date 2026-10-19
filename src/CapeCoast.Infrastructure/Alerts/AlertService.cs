@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using Microsoft.Extensions.Logging;

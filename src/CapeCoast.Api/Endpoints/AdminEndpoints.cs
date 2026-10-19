@@ -108,9 +108,17 @@ public static partial class AdminEndpoints
 
         return (new AlertRuleRow
         {
-            Id = id, Name = name!, Metric = r.Metric!, LocationId = r.LocationId, RuleType = ruleType,
-            Operator = r.Operator!, Threshold = r.Threshold!.Value, DurationMinutes = duration,
-            Severity = severity, CooldownMinutes = cooldown, Enabled = r.Enabled ?? true,
+            Id = id,
+            Name = name!,
+            Metric = r.Metric!,
+            LocationId = r.LocationId,
+            RuleType = ruleType,
+            Operator = r.Operator!,
+            Threshold = r.Threshold!.Value,
+            DurationMinutes = duration,
+            Severity = severity,
+            CooldownMinutes = cooldown,
+            Enabled = r.Enabled ?? true,
         }, errors);
     }
 
@@ -167,8 +175,13 @@ public static partial class AdminEndpoints
 
         var created = await repo.CreateLocationAsync(new LocationAdminRow
         {
-            Name = r.Name!.Trim(), Slug = r.Slug!, Coast = r.Coast!, CitySiteCode = r.CitySiteCode,
-            Lon = r.Lon!.Value, Lat = r.Lat!.Value, Active = r.Active ?? true,
+            Name = r.Name!.Trim(),
+            Slug = r.Slug!,
+            Coast = r.Coast!,
+            CitySiteCode = r.CitySiteCode,
+            Lon = r.Lon!.Value,
+            Lat = r.Lat!.Value,
+            Active = r.Active ?? true,
         }, ct);
 
         return created is null
@@ -183,8 +196,13 @@ public static partial class AdminEndpoints
 
         var updated = await repo.UpdateLocationAsync(new LocationAdminRow
         {
-            Id = id, Name = r.Name!.Trim(), Coast = r.Coast!, CitySiteCode = r.CitySiteCode,
-            Lon = r.Lon!.Value, Lat = r.Lat!.Value, Active = r.Active ?? true,
+            Id = id,
+            Name = r.Name!.Trim(),
+            Coast = r.Coast!,
+            CitySiteCode = r.CitySiteCode,
+            Lon = r.Lon!.Value,
+            Lat = r.Lat!.Value,
+            Active = r.Active ?? true,
         }, ct);
 
         if (updated is not null) return Results.Json(updated);

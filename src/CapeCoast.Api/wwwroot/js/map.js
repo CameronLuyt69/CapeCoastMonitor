@@ -33,11 +33,13 @@ export function createMap(container, onSelect) {
   let fitted = false;
 
   function statusOf(feature, now) {
-    return waterQualityStatus(feature.properties.waterQuality, now);
+    return waterQualityStatus(feature.properties.waterQuality, now, feature.withheld === true);
   }
 
   return {
     update(features, now = new Date()) {
+      // a snapshot made without water quality only needs the one legend entry
+      map.getContainer().querySelector('.legend')?.classList.toggle('withheld', features.some((f) => f.withheld));
       const seen = new Set();
       for (const feature of features) {
         const { slug, name } = feature.properties;
@@ -99,6 +101,11 @@ function addLegend(map) {
       const text = L.DomUtil.create('span', '', row);
       text.textContent = STATUS[key].label;
     }
+
+    const withheld = L.DomUtil.create('div', 'legend-row legend-withheld', box);
+    const dot = L.DomUtil.create('span', 'pin pin-withheld pin-small', withheld);
+    dot.innerHTML = `<span class="pin-glyph">${STATUS.withheld.glyph}</span>`;
+    L.DomUtil.create('span', '', withheld).textContent = STATUS.withheld.label;
 
     const stale = L.DomUtil.create('div', 'legend-row legend-note', box);
     const ring = L.DomUtil.create('span', 'pin pin-ok pin-stale pin-small', stale);

@@ -172,4 +172,15 @@ public class IngestionIntegrationTests
         Assert.Equal(fresh, result.LastSuccessAt is not null);
         Assert.Equal(status, result.LastStatus);
     }
+
+    [Fact]
+    public void A_reachable_database_does_not_make_the_migrator_wait()
+    {
+        var waits = 0;
+        var logger = new CountingLogger(() => waits++);
+
+        Migrator.WaitForServer(_fx.ConnectionString, logger, attempts: 3, delay: TimeSpan.FromMilliseconds(1));
+
+        Assert.Equal(0, waits);
+    }
 }

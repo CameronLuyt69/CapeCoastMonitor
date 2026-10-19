@@ -74,6 +74,7 @@ export const STATUS = {
   red: { label: 'Red alert', glyph: '✕' },
   unknown: { label: 'No usable result', glyph: '?' },
   none: { label: 'No City sampling site', glyph: '–' },
+  withheld: { label: 'Water quality not in this snapshot', glyph: '·' },
 };
 
 /**
@@ -81,7 +82,8 @@ export const STATUS = {
  * API's band against the configured threshold. A result older than STALE_AFTER_DAYS is flagged
  * stale, so an old "green" is never mistaken for a current one.
  */
-export function waterQualityStatus(wq, now = new Date()) {
+export function waterQualityStatus(wq, now = new Date(), withheld = false) {
+  if (withheld) return { key: 'withheld', stale: false, ...STATUS.withheld };
   if (!wq) return { key: 'none', stale: false, ...STATUS.none };
 
   let key;

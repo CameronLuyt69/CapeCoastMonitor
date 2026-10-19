@@ -206,8 +206,14 @@ public class AlertEvaluatorTests
 
     private static Incident Incident(DateTime? resolvedAt = null) => new()
     {
-        Id = 12, RuleId = 1, LocationId = 6, OpenedAt = Now.AddHours(-2), LastSeenAt = Now, ResolvedAt = resolvedAt,
-        PeakValue = 310, BreachCount = 3,
+        Id = 12,
+        RuleId = 1,
+        LocationId = 6,
+        OpenedAt = Now.AddHours(-2),
+        LastSeenAt = Now,
+        ResolvedAt = resolvedAt,
+        PeakValue = 310,
+        BreachCount = 3,
     };
 
     [Fact]

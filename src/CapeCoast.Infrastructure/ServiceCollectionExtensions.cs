@@ -1,8 +1,10 @@
 using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Alerts;
+using CapeCoast.Infrastructure.Export;
 using CapeCoast.Infrastructure.Data;
 using CapeCoast.Infrastructure.Ingestion;
+using CapeCoast.Infrastructure.Presentation;
 using CapeCoast.Infrastructure.Sources;
 using CapeCoast.Infrastructure.Sources.WaterQuality;
 using Microsoft.Extensions.Configuration;
@@ -28,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IngestionService>();
         services.AddSingleton<WaterQualityIngestionService>();
         services.AddSingleton<FreshnessChecker>();
+        services.AddSingleton<StatusService>();
         return services;
     }
 
@@ -58,6 +61,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AlertService>();
         // the ingestion services pick this up and call it after each run that wrote rows
         services.AddSingleton<IPostIngestHook>(sp => sp.GetRequiredService<AlertService>());
+        return services;
+    }
+
+    public static IServiceCollection AddCapeCoastExport(this IServiceCollection services, IConfiguration config)
+    {
+        services.Configure<ExportOptions>(config.GetSection(ExportOptions.Section));
+        services.AddSingleton<StaticExporter>();
         return services;
     }
 }

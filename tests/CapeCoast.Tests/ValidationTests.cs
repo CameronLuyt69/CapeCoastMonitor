@@ -101,3 +101,40 @@ public class ResilienceTests
         Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
     }
 }
+
+public class MigratorWaitTests
+{
+    [Fact]
+    public void A_database_that_never_comes_up_fails_after_the_attempts_instead_of_hanging()
+    {
+        var started = DateTime.UtcNow;
+
+        Assert.ThrowsAny<Exception>(() => CapeCoast.Infrastructure.Migrations.Migrator.WaitForServer(
+            "Host=127.0.0.1;Port=1;Username=x;Password=x", Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+            attempts: 3, delay: TimeSpan.FromMilliseconds(20)));
+
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public void It_retries_once_per_failed_attempt_and_then_gives_up()
+    {
+        var waits = 0;
+        var logger = new CountingLogger(() => waits++);
+
+        Assert.ThrowsAny<Exception>(() => CapeCoast.Infrastructure.Migrations.Migrator.WaitForServer(
+            "Host=127.0.0.1;Port=1;Username=x;Password=x", logger, attempts: 3, delay: TimeSpan.FromMilliseconds(1)));
+
+        Assert.Equal(2, waits);   // waited after attempts 1 and 2, and the third failure was thrown
+    }
+}
+
+public sealed class CountingLogger : Microsoft.Extensions.Logging.ILogger
+{
+    private readonly Action _onLog;
+    public CountingLogger(Action onLog) => _onLog = onLog;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId,
+        TState state, Exception? exception, Func<TState, Exception?, string> formatter) => _onLog();
+}

@@ -8,7 +8,8 @@ services:
     ports: ["127.0.0.1:5432:5432"]
     volumes: [dbdata:/home/postgres/pgdata/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # over TCP: during first-time setup only the unix socket answers, and that must not count as ready
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       retries: 20
 

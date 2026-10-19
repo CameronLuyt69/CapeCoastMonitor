@@ -21,7 +21,6 @@ public static class ReportParser
     private const double RowTolerance = 7;
     private static readonly Regex DateHeader = new(@"^\d{4}/\d{2}/\d{2}$");
     private static readonly Regex IsoDate = new(@"^\d{4}-\d{2}-\d{2}$");
-    private static readonly Regex UsDate = new(@"^\d{1,2}/\d{1,2}/\d{4}$");
     private static readonly Regex SiteCode = new(@"^[A-Z]{1,4}\d{2}[A-Z]?$");
     private static readonly Regex Decimal = new(@"^-?\d+\.\d+$");
     private static readonly Regex Category = new(@"^(Excellent|Good|Sufficient|Poor)$");
@@ -132,10 +131,6 @@ public static class ReportParser
             afterStatus = statusWords.LastOrDefault() ?? resultWord;
         }
 
-        var failure = row.FirstOrDefault(w => UsDate.IsMatch(w.Text));
-        DateOnly? lastFailure = failure is not null &&
-            DateOnly.TryParseExact(failure.Text, "M/d/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var f) ? f : null;
-
         var history = new List<DatedSample>();
         if (afterStatus is not null)
         {
@@ -183,6 +178,6 @@ public static class ReportParser
             }
         }
 
-        return new ReportSite(order, name, code?.Text, lon, lat, latestDate, latest, status, lastFailure, history, problems);
+        return new ReportSite(order, name, code?.Text, lon, lat, latestDate, latest, status, history, problems);
     }
 }
