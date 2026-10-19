@@ -22,11 +22,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CapeCoast.Infrastructure\CapeCoast.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\CapeCoast.Worker\CapeCoast.Worker.csproj" />
-    <ProjectReference Include="..\..\src\CapeCoast.Api\CapeCoast.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
