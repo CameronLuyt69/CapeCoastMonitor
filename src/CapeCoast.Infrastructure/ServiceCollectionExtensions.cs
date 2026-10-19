@@ -1,4 +1,6 @@
+using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Sources;
+using CapeCoast.Infrastructure.Alerts;
 using CapeCoast.Infrastructure.Data;
 using CapeCoast.Infrastructure.Ingestion;
 using CapeCoast.Infrastructure.Sources;
@@ -43,6 +45,19 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpClient(CityReportSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1 (non-commercial portfolio project)"));
         if (options.CityWaterQuality.Enabled) services.AddSingleton<IWaterQualitySource, CityReportSource>();
+        return services;
+    }
+
+    public static IServiceCollection AddCapeCoastAlerts(this IServiceCollection services, IConfiguration config)
+    {
+        services.Configure<AlertOptions>(config.GetSection(AlertOptions.Section));
+        services.AddSingleton(TimeProvider.System);
+        services.AddHttpClient(N8nWebhookNotifier.ClientName);
+        services.AddSingleton<AlertRepository>();
+        services.AddSingleton<IAlertNotifier, N8nWebhookNotifier>();
+        services.AddSingleton<AlertService>();
+        // the ingestion services pick this up and call it after each run that wrote rows
+        services.AddSingleton<IPostIngestHook>(sp => sp.GetRequiredService<AlertService>());
         return services;
     }
 }

@@ -1,0 +1,103 @@
+{
+  "id": "CapeCoastAlert1",
+  "name": "Cape Coast Monitor alerts",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capecoast-alerts",
+        "options": {}
+      },
+      "id": "2f5b3f0e-6b0e-4a3a-8f0a-0d6c1b7a0001",
+      "name": "Alert webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "capecoast-alerts"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "subject",
+              "type": "string",
+              "value": "={{ ($json.body.event === 'resolved' ? '[RESOLVED]' : '[' + $json.body.severity.toUpperCase() + ']') + ' ' + $json.body.location.name + ': ' + $json.body.rule.name }}"
+            },
+            {
+              "id": "a2",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.body.summary + '\\n\\nBeach: ' + $json.body.location.name + ' (' + $json.body.location.coast + ' coast)\\nRule: ' + $json.body.rule.name + ' [' + $json.body.severity + ']\\nValue: ' + ($json.body.value ?? 'n/a') + ' ' + $json.body.unit + '\\nOpened: ' + $json.body.openedAt + ($json.body.resolvedAt ? '\\nResolved: ' + $json.body.resolvedAt : '') + ($json.body.link ? '\\n\\n' + $json.body.link : '') + '\\n\\n' + $json.body.disclaimer }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2f5b3f0e-6b0e-4a3a-8f0a-0d6c1b7a0002",
+      "name": "Format message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@example.com",
+        "toEmail": "you@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {}
+      },
+      "id": "2f5b3f0e-6b0e-4a3a-8f0a-0d6c1b7a0003",
+      "name": "Send email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [740, 200],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_AFTER_IMPORT",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_YOUR_CHAT_ID",
+        "text": "={{ $json.subject + '\\n\\n' + $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2f5b3f0e-6b0e-4a3a-8f0a-0d6c1b7a0004",
+      "name": "Send Telegram message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [740, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_AFTER_IMPORT",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Alert webhook": {
+      "main": [[{ "node": "Format message", "type": "main", "index": 0 }]]
+    },
+    "Format message": {
+      "main": [[
+        { "node": "Send email", "type": "main", "index": 0 },
+        { "node": "Send Telegram message", "type": "main", "index": 0 }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

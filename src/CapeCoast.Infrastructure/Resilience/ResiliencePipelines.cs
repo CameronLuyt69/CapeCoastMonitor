@@ -12,8 +12,12 @@ public static class ResiliencePipelines
     // never affects the others.
     public static ResiliencePipeline<HttpResponseMessage> ForHttpSource(SourceOptions o)
     {
-        return new ResiliencePipelineBuilder<HttpResponseMessage>()
-            .AddRetry(new RetryStrategyOptions<HttpResponseMessage>
+        var builder = new ResiliencePipelineBuilder<HttpResponseMessage>();
+
+        // zero retries is a valid setting, but Polly refuses a retry strategy with no attempts
+        if (o.Retries > 0)
+        {
+            builder.AddRetry(new RetryStrategyOptions<HttpResponseMessage>
             {
                 MaxRetryAttempts = o.Retries,
                 BackoffType = DelayBackoffType.Exponential,
@@ -23,7 +27,10 @@ public static class ResiliencePipelines
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>()
                     .HandleResult(r => (int)r.StatusCode >= 500 || (int)r.StatusCode == 429)
-            })
+            });
+        }
+
+        return builder
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
             {
                 FailureRatio = 0.7,

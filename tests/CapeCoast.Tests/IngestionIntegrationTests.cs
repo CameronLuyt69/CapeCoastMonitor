@@ -47,6 +47,12 @@ public class IngestionIntegrationTests
 
     public IngestionIntegrationTests(DatabaseFixture fx) => _fx = fx;
 
+    private class RecordingHook : CapeCoast.Core.Alerts.IPostIngestHook
+    {
+        public List<string> Sources { get; } = new();
+        public Task AfterRunAsync(string source, CancellationToken ct) { Sources.Add(source); return Task.CompletedTask; }
+    }
+
     private IngestionService Service() => new(
         new LocationRepository(_fx.Db), new ObservationRepository(_fx.Db),
         new IngestionRunRepository(_fx.Db), NullLogger<IngestionService>.Instance);
@@ -132,5 +138,20 @@ public class IngestionIntegrationTests
             "SELECT status, error_message FROM ingestion_runs WHERE id = @id", new { id = result.RunId });
         Assert.Equal("failed", row.Status);
         Assert.Contains("upstream is down", row.Error);
+    }
+
+    [Fact]
+    public async Task Alert_evaluation_runs_after_rows_are_written_but_not_when_nothing_changed_or_it_failed()
+    {
+        await Reset();
+        var hook = new RecordingHook();
+        var service = new IngestionService(new LocationRepository(_fx.Db), new ObservationRepository(_fx.Db),
+            new IngestionRunRepository(_fx.Db), NullLogger<IngestionService>.Instance, hook);
+
+        await service.RunMarineAsync(new FixtureMarineSource(), CancellationToken.None);     // writes 48 rows
+        await service.RunMarineAsync(new FixtureMarineSource(), CancellationToken.None);     // identical, writes 0
+        await service.RunWindAsync(new BrokenWindSource(), CancellationToken.None);          // fails
+
+        Assert.Equal(new[] { "fixture-marine" }, hook.Sources);
     }
 }

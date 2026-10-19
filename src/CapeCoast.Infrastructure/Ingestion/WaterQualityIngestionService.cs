@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Data;
@@ -20,10 +21,12 @@ public class WaterQualityIngestionService
     private readonly IngestionRunRepository _runs;
     private readonly WaterQualityOptions _options;
     private readonly ILogger<WaterQualityIngestionService> _log;
+    private readonly IPostIngestHook? _hook;
 
     public WaterQualityIngestionService(WaterQualityRepository samples, IngestionRunRepository runs,
-        IOptions<SourcesOptions> options, ILogger<WaterQualityIngestionService> log)
+        IOptions<SourcesOptions> options, ILogger<WaterQualityIngestionService> log, IPostIngestHook? hook = null)
     {
+        _hook = hook;
         _samples = samples;
         _runs = runs;
         _options = options.Value.CityWaterQuality;
@@ -74,6 +77,7 @@ public class WaterQualityIngestionService
             await _runs.FinishAsync(runId, status, report.Sites.Count, written, note, ct);
             _log.LogInformation("Parsed {Sites} sites, {Tracked} tracked, {Written} samples changed",
                 report.Sites.Count, ids.Count, written);
+            if (_hook is not null && written > 0) await _hook.AfterRunAsync(source.Name, ct);
             return new IngestionResult(runId, status, report.Sites.Count, written, note);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)

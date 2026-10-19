@@ -69,3 +69,35 @@ public class ValidationTests
         Assert.True(FreshnessChecker.Evaluate("x", now.AddMinutes(-190), 60, now).Stale);
     }
 }
+
+public class ResilienceTests
+{
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void A_pipeline_can_be_built_with_any_retry_count_including_none(int retries)
+    {
+        var pipeline = CapeCoast.Infrastructure.Resilience.ResiliencePipelines.ForHttpSource(
+            new CapeCoast.Infrastructure.Sources.SourceOptions { Retries = retries, TimeoutSeconds = 5 });
+
+        Assert.NotNull(pipeline);
+    }
+
+    [Fact]
+    public async Task With_no_retries_a_server_error_comes_back_after_one_attempt()
+    {
+        var pipeline = CapeCoast.Infrastructure.Resilience.ResiliencePipelines.ForHttpSource(
+            new CapeCoast.Infrastructure.Sources.SourceOptions { Retries = 0, TimeoutSeconds = 5 });
+        var attempts = 0;
+
+        var response = await pipeline.ExecuteAsync(_ =>
+        {
+            attempts++;
+            return ValueTask.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError));
+        });
+
+        Assert.Equal(1, attempts);
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
+    }
+}

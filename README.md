@@ -91,3 +91,12 @@ Content-Security-Policy enforces that.
 - **Deep links:** `#beach=muizenberg` opens a beach.
 - **Theme:** light and dark, following the system setting until the visitor picks one (stored in `localStorage`, optional).
 - **Tests:** the formatting and chart geometry are pure functions covered by `node --test "tests/frontend/*.test.mjs"` (Node 22+).
+
+## Alerting
+
+Rules are stored in the database (static thresholds with an optional duration, or a deviation from the trailing 30-day norm) and
+evaluated after every ingestion run. Each rule and beach has at most one open incident: repeat breaches update it, clearing sends
+one "resolved" message, maintenance windows suppress everything for a beach and a per-rule cooldown stops flapping. Messages go to
+an n8n webhook with a documented payload, and an exported workflow routes them to email and Telegram.
+See [docs/alerts.md](docs/alerts.md) for the rule semantics, payload and setup. The water quality guideline is an ordinary rule
+(default 240 cfu/100 ml), not a constant in the code.

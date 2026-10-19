@@ -1,4 +1,6 @@
+using System.Text.Json;
 using CapeCoast.Infrastructure;
+using CapeCoast.Infrastructure.Alerts;
 using CapeCoast.Infrastructure.Migrations;
 using CapeCoast.Infrastructure.Sources;
 using CapeCoast.Worker.Jobs;
@@ -22,6 +24,7 @@ builder.Services.AddSerilog((services, cfg) =>
 
 builder.Services.AddCapeCoastData(builder.Configuration);
 builder.Services.AddOpenMeteoSources(builder.Configuration);
+builder.Services.AddCapeCoastAlerts(builder.Configuration);
 
 var sources = builder.Configuration.GetSection(SourcesOptions.Section).Get<SourcesOptions>() ?? new SourcesOptions();
 
@@ -45,6 +48,14 @@ var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("St
 if (args.Contains("--migrate-only"))
 {
     return Migrator.Run(connectionString, logger) ? 0 : 1;
+}
+
+// run the rules once and exit, handy after editing a rule or when checking the webhook setup
+if (args.Contains("--evaluate-alerts"))
+{
+    var summary = await host.Services.GetRequiredService<AlertService>().EvaluateAllAsync(CancellationToken.None);
+    Console.WriteLine(JsonSerializer.Serialize(summary));
+    return 0;
 }
 
 await host.RunAsync();

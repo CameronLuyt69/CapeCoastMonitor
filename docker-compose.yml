@@ -26,6 +26,8 @@ services:
       ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Seq__Url: http://seq:5341
       Alerts__WebhookUrl: ${ALERT_WEBHOOK_URL}
+      Alerts__WebhookSecret: ${ALERT_WEBHOOK_SECRET:-}
+      Alerts__PublicUrl: ${PUBLIC_URL:-http://localhost:8088}
       Sources__CityWaterQuality__StoragePath: /data/documents
     volumes: [docdata:/data/documents]
     depends_on:
@@ -74,7 +76,9 @@ services:
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
     ports: ["5678:5678"]
-    volumes: [n8ndata:/home/node/.n8n]
+    volumes:
+      - n8ndata:/home/node/.n8n
+      - ./n8n:/workflows:ro
 
 volumes:
   dbdata:

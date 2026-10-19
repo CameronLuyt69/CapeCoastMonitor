@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Data;
@@ -18,10 +19,12 @@ public class IngestionService
     private readonly ObservationRepository _observations;
     private readonly IngestionRunRepository _runs;
     private readonly ILogger<IngestionService> _log;
+    private readonly IPostIngestHook? _hook;
 
     public IngestionService(LocationRepository locations, ObservationRepository observations,
-        IngestionRunRepository runs, ILogger<IngestionService> log)
+        IngestionRunRepository runs, ILogger<IngestionService> log, IPostIngestHook? hook = null)
     {
+        _hook = hook;
         _locations = locations;
         _observations = observations;
         _runs = runs;
@@ -69,6 +72,7 @@ public class IngestionService
             var note = flagged > 0 ? $"{flagged} rows carry quality flags" : null;
             await _runs.FinishAsync(runId, status, fetched, written, note, ct);
             _log.LogInformation("Ingested {Fetched} rows, {Written} changed, {Flagged} flagged", fetched, written, flagged);
+            if (_hook is not null && written > 0) await _hook.AfterRunAsync(source, ct);
             return new IngestionResult(runId, status, fetched, written, note);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
