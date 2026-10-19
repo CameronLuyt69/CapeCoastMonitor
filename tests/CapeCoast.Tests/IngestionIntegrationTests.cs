@@ -154,4 +154,22 @@ public class IngestionIntegrationTests
 
         Assert.Equal(new[] { "fixture-marine" }, hook.Sources);
     }
+
+    [Theory]
+    [InlineData("succeeded", 10, true)]
+    [InlineData("flagged", 10, true)]      // fresh rows, some values missing
+    [InlineData("flagged", 0, false)]      // a report rejected as unreadable wrote nothing
+    [InlineData("failed", 0, false)]
+    public async Task Freshness_counts_a_run_as_fresh_only_when_it_delivered_data(string status, int written, bool fresh)
+    {
+        var runs = new IngestionRunRepository(_fx.Db);
+        var source = $"freshness-{status}-{written}";
+        var id = await runs.StartAsync(source, null);
+        await runs.FinishAsync(id, status, 10, written, null);
+
+        var result = await runs.GetStatusAsync(source);
+
+        Assert.Equal(fresh, result.LastSuccessAt is not null);
+        Assert.Equal(status, result.LastStatus);
+    }
 }

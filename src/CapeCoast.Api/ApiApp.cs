@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 using CapeCoast.Api.Endpoints;
 using CapeCoast.Infrastructure;
 using CapeCoast.Infrastructure.Sources;
+using CapeCoast.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
+using Serilog.Events;
 
 namespace CapeCoast.Api;
 
@@ -22,7 +25,7 @@ public static class ApiApp
         {
             cfg.ReadFrom.Configuration(context.Configuration)
                .Enrich.FromLogContext()
-               .WriteTo.Console();
+               .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}");
             var seq = context.Configuration["Seq:Url"];
             if (!string.IsNullOrEmpty(seq)) cfg.WriteTo.Seq(seq);
         });
@@ -33,8 +36,15 @@ public static class ApiApp
         builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.Section));
         builder.Services.Configure<WaterQualityDisplayOptions>(builder.Configuration.GetSection(WaterQualityDisplayOptions.Section));
 
+        builder.Services.AddCapeCoastTelemetry(builder.Configuration, "api", instrumentIncomingRequests: true);
+
         builder.Services.AddSingleton<IngestionNotifier>();
         builder.Services.AddHostedService(sp => sp.GetRequiredService<IngestionNotifier>());
+
+        // sign-in cookies are encrypted with these keys, so keep them somewhere that survives a restart
+        var keysPath = builder.Configuration["DataProtection:KeysPath"];
+        if (!string.IsNullOrWhiteSpace(keysPath))
+            builder.Services.AddDataProtection().SetApplicationName("CapeCoastMonitor").PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 
         AddAuth(builder.Services);
         AddRateLimiting(builder.Services, builder.Configuration);
@@ -47,6 +57,15 @@ public static class ApiApp
         });
 
         var app = builder.Build();
+
+        app.UseCorrelationId();
+        app.UseSerilogRequestLogging(o =>
+        {
+            // the health check and the long-lived event stream would drown out everything else
+            o.GetLevel = (ctx, _, ex) => ex is not null || ctx.Response.StatusCode >= 500 ? LogEventLevel.Error
+                : ctx.Request.Path.StartsWithSegments("/api/health") || ctx.Request.Path.StartsWithSegments("/api/stream")
+                    ? LogEventLevel.Debug : LogEventLevel.Information;
+        });
 
         app.Use(async (context, next) =>
         {

@@ -100,3 +100,9 @@ one "resolved" message, maintenance windows suppress everything for a beach and 
 an n8n webhook with a documented payload, and an exported workflow routes them to email and Telegram.
 See [docs/alerts.md](docs/alerts.md) for the rule semantics, payload and setup. The water quality guideline is an ordinary rule
 (default 240 cfu/100 ml), not a constant in the code.
+
+## Observability
+
+Structured logs go to Seq with a correlation id on every line, OpenTelemetry spans go to Seq too, and metrics (job duration, rows
+ingested, failures per source, API latency p50/p95/p99) are stored in Timescale and charted in three provisioned Grafana dashboards:
+pipeline health, beach trends and water quality history. See [docs/observability.md](docs/observability.md).

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using Microsoft.Extensions.Logging;
@@ -62,6 +63,7 @@ public class AlertService : IPostIngestHook
     public async Task<AlertRunSummary> EvaluateAllAsync(CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
+        using var span = Telemetry.Telemetry.Source.StartActivity("alerts.evaluate");
         try
         {
             var summary = new AlertRunSummary();
@@ -91,6 +93,8 @@ public class AlertService : IPostIngestHook
 
             await CloseOrphansAsync(locations, now, summary, ct);
             await RetryPendingResolutionsAsync(locations, now, summary, ct);
+            span?.SetTag("ccm.alerts.opened", summary.Opened);
+            span?.SetTag("ccm.alerts.resolved", summary.Resolved);
             return summary;
         }
         finally
@@ -147,6 +151,7 @@ public class AlertService : IPostIngestHook
                 var incident = await _repo.OpenAsync(rule.Id, location.Id, value, now, ct);
                 if (incident is null) return;
                 summary.Opened++;
+                Telemetry.Telemetry.AlertEvents.Add(1, new KeyValuePair<string, object?>("event", "opened"), new KeyValuePair<string, object?>("severity", rule.Severity));
                 await NotifyOpenedAsync(incident, rule, location, source, verdict, now, summary, ct);
             }
             else
@@ -163,6 +168,7 @@ public class AlertService : IPostIngestHook
             var closed = await _repo.ResolveAsync(open.Id, now, ct);
             if (closed is null) return;
             summary.Resolved++;
+            Telemetry.Telemetry.AlertEvents.Add(1, new KeyValuePair<string, object?>("event", "resolved"), new KeyValuePair<string, object?>("severity", rule.Severity));
             if (closed.LastNotifiedAt is not null)
                 await NotifyResolvedAsync(closed, rule, location, source, verdict, now, summary, ct);
         }
@@ -231,6 +237,7 @@ public class AlertService : IPostIngestHook
             _log.LogWarning(ex, "Sending the {Event} alert for incident {Incident} failed", payload.Event, payload.IncidentId);
         }
         summary.NotifyFailed++;
+        Telemetry.Telemetry.AlertNotifyFailures.Add(1);
         return false;
     }
 

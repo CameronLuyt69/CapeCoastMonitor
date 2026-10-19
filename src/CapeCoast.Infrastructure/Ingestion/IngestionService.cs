@@ -3,6 +3,7 @@ using CapeCoast.Core.Alerts;
 using CapeCoast.Core.Domain;
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Data;
+using CapeCoast.Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace CapeCoast.Infrastructure.Ingestion;
@@ -57,6 +58,10 @@ public class IngestionService
     {
         var correlationId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
         var runId = await _runs.StartAsync(source, correlationId, ct);
+        using var span = Telemetry.Telemetry.Source.StartActivity("ingestion.run");
+        span?.SetTag("ccm.source", source);
+        span?.SetTag("ccm.run_id", runId);
+        var clock = Stopwatch.StartNew();
         using var scope = _log.BeginScope(new Dictionary<string, object>
         {
             ["CorrelationId"] = correlationId, ["Source"] = source, ["RunId"] = runId
@@ -72,6 +77,8 @@ public class IngestionService
             var note = flagged > 0 ? $"{flagged} rows carry quality flags" : null;
             await _runs.FinishAsync(runId, status, fetched, written, note, ct);
             _log.LogInformation("Ingested {Fetched} rows, {Written} changed, {Flagged} flagged", fetched, written, flagged);
+            Telemetry.Telemetry.RecordRun(source, status, fetched, written, clock.Elapsed);
+            span?.SetTag("ccm.rows_written", written);
             if (_hook is not null && written > 0) await _hook.AfterRunAsync(source, ct);
             return new IngestionResult(runId, status, fetched, written, note);
         }
@@ -79,6 +86,8 @@ public class IngestionService
         {
             _log.LogError(ex, "Ingestion failed");
             await _runs.FinishAsync(runId, "failed", 0, 0, ex.Message, CancellationToken.None);
+            Telemetry.Telemetry.RecordRun(source, "failed", 0, 0, clock.Elapsed);
+            span?.SetStatus(ActivityStatusCode.Error, ex.Message);
             return new IngestionResult(runId, "failed", 0, 0, ex.Message);
         }
     }

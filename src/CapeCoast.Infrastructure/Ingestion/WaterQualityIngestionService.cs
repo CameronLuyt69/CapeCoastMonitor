@@ -37,6 +37,16 @@ public class WaterQualityIngestionService
     {
         var correlationId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
         var runId = await _runs.StartAsync(source.Name, correlationId, ct);
+        using var span = Telemetry.Telemetry.Source.StartActivity("ingestion.run");
+        span?.SetTag("ccm.source", source.Name);
+        span?.SetTag("ccm.run_id", runId);
+        var clock = Stopwatch.StartNew();
+        IngestionResult Done(IngestionResult r)
+        {
+            Telemetry.Telemetry.RecordRun(source.Name, r.Status, r.Fetched, r.Written, clock.Elapsed);
+            if (r.Status == "failed") span?.SetStatus(ActivityStatusCode.Error, r.Error);
+            return r;
+        }
         using var scope = _log.BeginScope(new Dictionary<string, object>
         {
             ["CorrelationId"] = correlationId, ["Source"] = source.Name, ["RunId"] = runId
@@ -50,7 +60,7 @@ public class WaterQualityIngestionService
             {
                 await _runs.FinishAsync(runId, "succeeded", 0, 0, null, ct);
                 _log.LogInformation("Report unchanged since the last download, nothing to do");
-                return new IngestionResult(runId, "succeeded", 0, 0, null);
+                return Done(new IngestionResult(runId, "succeeded", 0, 0, null));
             }
 
             var storedPath = Store(download);
@@ -63,7 +73,7 @@ public class WaterQualityIngestionService
             {
                 await _runs.FinishAsync(runId, "flagged", report.Sites.Count, 0, problem, ct);
                 _log.LogWarning("Report parse rejected: {Problem}", problem);
-                return new IngestionResult(runId, "flagged", report.Sites.Count, 0, problem);
+                return Done(new IngestionResult(runId, "flagged", report.Sites.Count, 0, problem));
             }
 
             var ids = await _samples.LocationIdsByCityCodeAsync(ct);
@@ -78,13 +88,13 @@ public class WaterQualityIngestionService
             _log.LogInformation("Parsed {Sites} sites, {Tracked} tracked, {Written} samples changed",
                 report.Sites.Count, ids.Count, written);
             if (_hook is not null && written > 0) await _hook.AfterRunAsync(source.Name, ct);
-            return new IngestionResult(runId, status, report.Sites.Count, written, note);
+            return Done(new IngestionResult(runId, status, report.Sites.Count, written, note));
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _log.LogError(ex, "Water quality ingestion failed");
             await _runs.FinishAsync(runId, "failed", 0, 0, ex.Message, CancellationToken.None);
-            return new IngestionResult(runId, "failed", 0, 0, ex.Message);
+            return Done(new IngestionResult(runId, "failed", 0, 0, ex.Message));
         }
     }
 

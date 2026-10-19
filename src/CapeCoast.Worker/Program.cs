@@ -3,6 +3,7 @@ using CapeCoast.Infrastructure;
 using CapeCoast.Infrastructure.Alerts;
 using CapeCoast.Infrastructure.Migrations;
 using CapeCoast.Infrastructure.Sources;
+using CapeCoast.Infrastructure.Telemetry;
 using CapeCoast.Worker.Jobs;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -17,7 +18,7 @@ builder.Services.AddSerilog((services, cfg) =>
 {
     cfg.ReadFrom.Configuration(builder.Configuration)
        .Enrich.FromLogContext()
-       .WriteTo.Console();
+       .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}");
     var seq = builder.Configuration["Seq:Url"];
     if (!string.IsNullOrEmpty(seq)) cfg.WriteTo.Seq(seq);
 });
@@ -25,6 +26,7 @@ builder.Services.AddSerilog((services, cfg) =>
 builder.Services.AddCapeCoastData(builder.Configuration);
 builder.Services.AddOpenMeteoSources(builder.Configuration);
 builder.Services.AddCapeCoastAlerts(builder.Configuration);
+builder.Services.AddCapeCoastTelemetry(builder.Configuration, "worker", instrumentIncomingRequests: false);
 
 var sources = builder.Configuration.GetSection(SourcesOptions.Section).Get<SourcesOptions>() ?? new SourcesOptions();
 

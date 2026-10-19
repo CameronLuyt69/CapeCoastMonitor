@@ -1,0 +1,861 @@
+{
+  "uid": "ccm-pipeline",
+  "title": "Cape Coast: pipeline health",
+  "description": "Ingestion runs, freshness per source, job and API timing from OpenTelemetry, and open alert incidents.",
+  "tags": [
+    "capecoast"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Source freshness",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "\nWITH last AS (\n  SELECT DISTINCT ON (source) source, status, started_at, rows_written\n  FROM ingestion_runs ORDER BY source, started_at DESC),\nok AS (\n  SELECT source, max(finished_at) AS last_success FROM ingestion_runs WHERE (status = 'succeeded' OR (status = 'flagged' AND rows_written > 0)) GROUP BY source)\nSELECT l.source AS \"Source\",\n       CASE WHEN ok.last_success IS NULL OR now() - ok.last_success > 3 * (CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END) * interval '1 minute'\n            THEN 'STALE' ELSE 'ok' END AS \"Freshness\",\n       l.status AS \"Last run\",\n       l.started_at AS \"Started\",\n       ok.last_success AS \"Last delivered data\",\n       round(EXTRACT(EPOCH FROM (now() - ok.last_success)) / 60) AS \"Minutes since\",\n       CASE WHEN l.source = 'cct-coastal-water-quality' THEN 1440 ELSE 60 END AS \"Expected every (min)\",\n       l.rows_written AS \"Rows changed\"\nFROM last l LEFT JOIN ok USING (source) ORDER BY l.source\n"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Freshness"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "STALE": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "ok": {
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "A source is stale when it has delivered no data for three expected intervals. A flagged run that wrote rows counts as delivered; a flagged run that wrote nothing (an unreadable report) does not."
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Failed runs, last 24 h",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT source AS metric, count(*) AS value FROM ingestion_runs WHERE status = 'failed' AND started_at > now() - interval '24 hours' GROUP BY source ORDER BY source"
+        }
+      ],
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 5,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "description": "Runs that ended in an error. Zero is shown when there are none."
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Open alert incidents",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS value FROM alert_events WHERE resolved_at IS NULL"
+        }
+      ],
+      "gridPos": {
+        "x": 19,
+        "y": 0,
+        "w": 5,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Runs per hour by outcome",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT $__timeGroupAlias(started_at, '1h'), status AS metric, count(*) AS value FROM ingestion_runs WHERE $__timeFilter(started_at) GROUP BY 1, 2 ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "flagged"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "succeeded"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "succeeded, flagged (rows kept with quality flags, or a report rejected) and failed."
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Rows changed per run",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT started_at AS time, source AS metric, rows_written AS value FROM ingestion_runs WHERE $__timeFilter(started_at) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Zero is normal when a re-run found the same values."
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Run duration",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT started_at AS time, source AS metric, EXTRACT(EPOCH FROM (finished_at - started_at)) AS value FROM ingestion_runs WHERE finished_at IS NOT NULL AND $__timeFilter(started_at) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Job duration p95 (OpenTelemetry)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT time, attributes->>'job' AS metric, value FROM metric_points WHERE name = 'ccm.job.duration.p95' AND $__timeFilter(time) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Wall time of the scheduled jobs, estimated per 30 s export interval from histogram buckets."
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "API latency percentiles, all routes",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT time, replace(name, 'http.server.request.duration.', '') AS metric, value * 1000 AS value FROM metric_points WHERE $__timeFilter(time) AND service = 'api' AND attributes->>'scope' = 'all' AND name IN ('http.server.request.duration.p50', 'http.server.request.duration.p95', 'http.server.request.duration.p99') ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Estimated from histogram buckets per export interval. The event stream is excluded because it stays open for as long as a browser does."
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "API requests per interval",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT time, value FROM metric_points WHERE $__timeFilter(time) AND service = 'api' AND attributes->>'scope' = 'all' AND name = 'http.server.request.duration.count' ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Requests in each 30 s export interval."
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "API p95 by route",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT time, attributes->>'route' AS metric, value * 1000 AS value FROM metric_points WHERE $__timeFilter(time) AND service = 'api' AND name = 'http.server.request.duration.p95' AND attributes ? 'route' ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "auto",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Rows written (OpenTelemetry counter)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT time, attributes->>'source' AS metric, value FROM metric_points WHERE $__timeFilter(time) AND name = 'ccm.ingestion.rows.written' ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Open alert incidents",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT e.id AS \"Incident\", r.name AS \"Rule\", l.name AS \"Beach\", r.severity AS \"Severity\", e.opened_at AS \"Opened\", e.last_seen_at AS \"Last seen\", e.breach_count AS \"Breaches\", round(e.peak_value::numeric, 2) AS \"Peak\", (e.last_notified_at IS NOT NULL) AS \"Message sent\" FROM alert_events e JOIN alert_rules r ON r.id = e.rule_id JOIN locations l ON l.id = e.location_id WHERE e.resolved_at IS NULL ORDER BY e.opened_at DESC"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Recent failed and flagged runs",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT id AS \"Run\", source AS \"Source\", started_at AS \"Started\", status AS \"Status\", rows_fetched AS \"Fetched\", rows_written AS \"Written\", error_message AS \"Message\", correlation_id AS \"Correlation id\" FROM ingestion_runs WHERE status IN ('failed', 'flagged') ORDER BY started_at DESC LIMIT 50"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "The correlation id is the trace id: search for it in Seq to see the logs and spans of that run."
+    }
+  ],
+  "links": []
+}

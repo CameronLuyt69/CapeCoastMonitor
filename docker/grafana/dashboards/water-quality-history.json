@@ -1,0 +1,596 @@
+{
+  "uid": "ccm-water-quality",
+  "title": "Cape Coast: water quality history",
+  "description": "City of Cape Town enterococci results over time, how old they are, and the documents they came from.",
+  "tags": [
+    "capecoast"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "5m",
+  "time": {
+    "from": "now-120d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "beach",
+        "label": "Beaches",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "capecoast-pg"
+        },
+        "refresh": 1,
+        "sort": 5,
+        "query": "SELECT name AS __text, id AS __value FROM locations WHERE id IN (SELECT DISTINCT location_id FROM water_quality_samples) ORDER BY name",
+        "definition": "SELECT name AS __text, id AS __value FROM locations WHERE id IN (SELECT DISTINCT location_id FROM water_quality_samples) ORDER BY name",
+        "current": {},
+        "includeAll": true,
+        "allValue": "SELECT id FROM locations",
+        "multi": true,
+        "hide": 0,
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Latest result age (newest sample overall)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT (current_date - max(sampled_at)::date) AS value FROM water_quality_samples"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 14
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "description": "Days since the newest sample in the database. Results are never live."
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Samples above the alert threshold",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS value FROM water_quality_samples WHERE location_id IN ($beach) AND $__timeFilter(sampled_at) AND enterococci_cfu_100ml > (SELECT threshold FROM alert_rules WHERE metric = 'enterococci' AND location_id IS NULL AND enabled ORDER BY id LIMIT 1)"
+        }
+      ],
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "description": "Samples in the selected range above the enterococci alert rule (default 240 cfu/100 ml)."
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Samples in range",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS value FROM water_quality_samples WHERE location_id IN ($beach) AND $__timeFilter(sampled_at)"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Report documents stored",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS value FROM source_documents WHERE source = 'cct-coastal-water-quality'"
+        }
+      ],
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "description": "Every sample links to the PDF it came from."
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Enterococci per sample",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT s.sampled_at AS time, l.name AS metric, s.enterococci_cfu_100ml AS value FROM water_quality_samples s JOIN locations l ON l.id = s.location_id WHERE s.location_id IN ($beach) AND $__timeFilter(s.sampled_at) AND s.enterococci_cfu_100ml IS NOT NULL ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT t AS time, 'Alert threshold' AS metric, (SELECT threshold FROM alert_rules WHERE metric = 'enterococci' AND location_id IS NULL AND enabled ORDER BY id LIMIT 1) AS value FROM (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) v(t) ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "points",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none",
+            "scaleDistribution": {
+              "type": "symlog",
+              "log": 10
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alert threshold"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "cfu per 100 ml, one point per sample on a log-like scale. The dashed line is the first all-beaches enterococci alert rule, so changing that rule moves it. Censored values such as >2419 are plotted at their number."
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Latest result per beach",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT l.name AS \"Beach\", s.sampled_at::date AS \"Sampled\", (current_date - s.sampled_at::date) AS \"Age (days)\", COALESCE(s.qualifier, '') || COALESCE(s.enterococci_cfu_100ml::text, '') AS \"Result\", s.rating AS \"City status\", d.url AS \"Source document\", s.ingestion_run_id AS \"Run\" FROM locations l JOIN LATERAL (SELECT * FROM water_quality_samples WHERE location_id = l.id ORDER BY sampled_at DESC LIMIT 1) s ON true LEFT JOIN source_documents d ON d.id = s.source_document_id WHERE l.id IN ($beach) ORDER BY l.name"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source document"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open City report",
+                    "url": "${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Run"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Ingestion run JSON",
+                    "url": "/api/runs/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Age (days)"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 14
+                    },
+                    {
+                      "color": "red",
+                      "value": 30
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Click a document or run to trace a result back to where it came from."
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Samples per week",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT $__timeGroupAlias(sampled_at, '7d'), l.name AS metric, count(*) AS value FROM water_quality_samples s JOIN locations l ON l.id = s.location_id WHERE s.location_id IN ($beach) AND $__timeFilter(sampled_at) GROUP BY 1, 2 ORDER BY 1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "showPoints": "never",
+            "pointSize": 6,
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "gradientMode": "none"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Gaps here are gaps in the City's published results, shown as gaps."
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Samples in range",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "capecoast-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "capecoast-pg"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT s.sampled_at::date AS \"Sampled\", l.name AS \"Beach\", COALESCE(s.qualifier, '') || COALESCE(s.enterococci_cfu_100ml::text, '') AS \"Result\", s.rating AS \"City status\", s.published_at AS \"Report published\", s.source_document_id AS \"Document\" FROM water_quality_samples s JOIN locations l ON l.id = s.location_id WHERE s.location_id IN ($beach) AND $__timeFilter(s.sampled_at) ORDER BY s.sampled_at DESC, l.name LIMIT 500"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    }
+  ],
+  "links": []
+}

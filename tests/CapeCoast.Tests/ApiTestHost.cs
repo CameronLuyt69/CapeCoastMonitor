@@ -31,7 +31,7 @@ public sealed class ApiTestHost : IAsyncDisposable
             "--Auth:AdminUsername=admin", "--Auth:AdminPassword=admin-pass",
             "--Auth:ViewerUsername=viewer", "--Auth:ViewerPassword=viewer-pass",
             "--RateLimits:LoginPerMinute=1000", "--RateLimits:PublicPerMinute=100000", "--RateLimits:AdminPerMinute=100000",
-            "--Logging:LogLevel:Default=Warning",
+            "--Logging:LogLevel:Default=Warning", "--Telemetry:Enabled=false",
         }.Concat(extraArgs).ToArray();
 
         var app = ApiApp.Build(args);

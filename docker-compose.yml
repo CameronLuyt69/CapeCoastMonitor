@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [dbdata:/home/postgres/pgdata/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -29,6 +29,7 @@ services:
       Alerts__WebhookSecret: ${ALERT_WEBHOOK_SECRET:-}
       Alerts__PublicUrl: ${PUBLIC_URL:-http://localhost:8088}
       Sources__CityWaterQuality__StoragePath: /data/documents
+      Telemetry__OtlpEndpoint: http://seq:5341/ingest/otlp/v1/traces
     volumes: [docdata:/data/documents]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -43,7 +44,10 @@ services:
       Auth__AdminPassword: ${ADMIN_PASSWORD}
       Auth__ViewerUsername: ${VIEWER_USERNAME:-}
       Auth__ViewerPassword: ${VIEWER_PASSWORD:-}
+      Telemetry__OtlpEndpoint: http://seq:5341/ingest/otlp/v1/traces
+      DataProtection__KeysPath: /data/keys
     ports: ["${API_PORT:-8088}:8080"]
+    volumes: [apikeys:/data/keys]
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -51,7 +55,7 @@ services:
     image: datalust/seq:2024
     environment:
       ACCEPT_EULA: "Y"
-    ports: ["5341:80"]
+    ports: ["127.0.0.1:5341:80"]
     volumes: [seqdata:/data]
 
   grafana:
@@ -86,3 +90,4 @@ volumes:
   grafanadata:
   n8ndata:
   docdata:
+  apikeys:

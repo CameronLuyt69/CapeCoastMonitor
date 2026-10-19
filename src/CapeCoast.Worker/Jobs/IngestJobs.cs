@@ -19,11 +19,11 @@ public class MarineIngestJob : IJob
         _ingestion = ingestion;
     }
 
-    public async Task Execute(IJobExecutionContext context)
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("marine-ingest", async () =>
     {
         foreach (var source in _sources)
             await _ingestion.RunMarineAsync(source, context.CancellationToken);
-    }
+    });
 }
 
 [DisallowConcurrentExecution]
@@ -38,11 +38,11 @@ public class WindIngestJob : IJob
         _ingestion = ingestion;
     }
 
-    public async Task Execute(IJobExecutionContext context)
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("wind-ingest", async () =>
     {
         foreach (var source in _sources)
             await _ingestion.RunWindAsync(source, context.CancellationToken);
-    }
+    });
 }
 
 [DisallowConcurrentExecution]
@@ -57,11 +57,11 @@ public class WaterQualityIngestJob : IJob
         _ingestion = ingestion;
     }
 
-    public async Task Execute(IJobExecutionContext context)
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("water-quality-ingest", async () =>
     {
         foreach (var source in _sources)
             await _ingestion.RunAsync(source, context.CancellationToken);
-    }
+    });
 }
 
 [DisallowConcurrentExecution]
@@ -78,7 +78,7 @@ public class FreshnessJob : IJob
         _log = log;
     }
 
-    public async Task Execute(IJobExecutionContext context)
+    public Task Execute(IJobExecutionContext context) => JobRunner.RunAsync("freshness-check", async () =>
     {
         var checks = new[]
         {
@@ -93,5 +93,5 @@ public class FreshnessJob : IJob
             if (result.Stale)
                 _log.LogWarning("Source {Source} is stale: {Reason}", name, result.Reason);
         }
-    }
+    });
 }
