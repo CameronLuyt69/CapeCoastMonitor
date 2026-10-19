@@ -73,3 +73,21 @@ Design notes:
   Login is rate limited, as is every public route, and each client may hold a few streams open.
 - **Water quality band:** `ok`, `exceeds` or `unknown` against `WaterQuality:SingleSampleThresholdCfu` (default 240), not a hard-coded value.
 - **Tide:** the marine model's sea level is returned as `seaLevelMslApproxM` and is not official tide data.
+
+## Frontend
+
+Plain JavaScript (ES modules, no build step) served by the API from `wwwroot`. Leaflet 1.9.4 is vendored in `wwwroot/vendor/leaflet`
+(BSD-2, licence included) so the page loads no third-party scripts; the only external request is OpenStreetMap tiles, and a
+Content-Security-Policy enforces that.
+
+- **Map:** markers are coloured by the City's water quality status, with a distinct glyph and shape per status so colour isn't the
+  only signal. A dashed ring marks a result older than 14 days, so an old green is never mistaken for a current one.
+- **Panel:** latest water quality with its age and source link, model conditions, a trend chart and the recent samples.
+- **Chart:** an SVG chart (no chart library) with the hourly line, each day's min to max as a band, the forecast region shaded and
+  water quality samples marked on the axis. Click, tap or use the arrow keys and Enter on a point to see the ingestion run that wrote
+  it and the nearest water quality sample with its source document.
+- **Live updates:** Server-Sent Events trigger a refetch; if the stream is refused or drops it falls back to polling every minute
+  and retries the stream every two minutes.
+- **Deep links:** `#beach=muizenberg` opens a beach.
+- **Theme:** light and dark, following the system setting until the visitor picks one (stored in `localStorage`, optional).
+- **Tests:** the formatting and chart geometry are pure functions covered by `node --test "tests/frontend/*.test.mjs"` (Node 22+).

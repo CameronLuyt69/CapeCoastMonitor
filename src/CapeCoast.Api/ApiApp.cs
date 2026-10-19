@@ -9,6 +9,11 @@ namespace CapeCoast.Api;
 
 public static class ApiApp
 {
+    // Leaflet sets inline styles from script, hence style-src 'unsafe-inline'. Scripts stay same-origin only.
+    private const string Csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+                               "img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; " +
+                               "frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+
     public static WebApplication Build(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -48,6 +53,9 @@ public static class ApiApp
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
             context.Response.Headers["X-Frame-Options"] = "DENY";
+            // Swagger UI ships inline scripts, so the strict policy is for the app itself
+            if (!context.Request.Path.StartsWithSegments("/swagger"))
+                context.Response.Headers["Content-Security-Policy"] = Csp;
             await next();
         });
 

@@ -12,7 +12,11 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: dotnet restore
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build --no-restore -c Release
       - run: dotnet test --no-build -c Release
+      - run: node --test "tests/frontend/*.test.mjs"

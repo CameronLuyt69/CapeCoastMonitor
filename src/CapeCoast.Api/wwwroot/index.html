@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cape Coast Monitor</title>
+  <meta name="description" content="Waves, wind and coastal water quality for Cape Town beaches on one map.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/theme-init.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Cape Coast Monitor</h1>
+      <p class="tagline">Waves, wind and water quality for Cape Town beaches</p>
+    </div>
+    <div class="actions">
+      <span id="live" class="live" data-state="polling" role="status">Connecting…</span>
+      <button id="theme" class="btn" type="button">Dark theme</button>
+    </div>
+  </header>
+
+  <p class="disclaimer" role="note">
+    Portfolio demo, not a safety tool. Forecasts are modelled and water quality results are delayed.
+  </p>
+
+  <main class="layout">
+    <section class="map-wrap" aria-label="Map of beaches">
+      <div id="map"></div>
+      <noscript><p class="warn">The map needs JavaScript. The data is also available at <a href="/swagger">/swagger</a>.</p></noscript>
+    </section>
+    <aside id="panel" class="panel" aria-label="Beach details" hidden></aside>
+  </main>
+
+  <section id="statusbar" class="statusbar" aria-label="Data freshness"></section>
+
+  <footer class="foot">
+    <p>
+      Marine and wind data: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a>
+      (CC BY 4.0, non-commercial use), model data from DWD and partner weather services.
+      Water quality: <a href="https://www.capetown.gov.za/Work%20and%20business/Commercial-health-and-safety/Environmental-health/coastal-water-quality" target="_blank" rel="noopener noreferrer">City of Cape Town</a>
+      Coastal Water Quality Report, used for personal, non-commercial purposes.
+      Map: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors, rendered with
+      <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a>.
+    </p>
+    <p>API documentation: <a href="/swagger">/swagger</a>. No cookies are set for visitors and nothing is tracked.</p>
+  </footer>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
