@@ -1,0 +1,80 @@
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["5432:5432"]
+    volumes: [dbdata:/home/postgres/pgdata/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+
+  migrate:
+    build: { context: ., dockerfile: docker/Dockerfile.worker }
+    command: ["--migrate-only"]
+    environment:
+      ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    build: { context: ., dockerfile: docker/Dockerfile.worker }
+    environment:
+      ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Seq__Url: http://seq:5341
+      Alerts__WebhookUrl: ${ALERT_WEBHOOK_URL}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      seq: { condition: service_started }
+
+  api:
+    build: { context: ., dockerfile: docker/Dockerfile.api }
+    environment:
+      ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Seq__Url: http://seq:5341
+      Auth__AdminUsername: ${ADMIN_USERNAME}
+      Auth__AdminPassword: ${ADMIN_PASSWORD}
+      Auth__SigningKey: ${JWT_SIGNING_KEY}
+    ports: ["${API_PORT:-8088}:8080"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  seq:
+    image: datalust/seq:2024
+    environment:
+      ACCEPT_EULA: "Y"
+    ports: ["5341:80"]
+    volumes: [seqdata:/data]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["3000:3000"]
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      db: { condition: service_healthy }
+
+  n8n:
+    image: n8nio/n8n:1.60.0
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+    ports: ["5678:5678"]
+    volumes: [n8ndata:/home/node/.n8n]
+
+volumes:
+  dbdata:
+  seqdata:
+  grafanadata:
+  n8ndata:
