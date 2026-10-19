@@ -4,5 +4,6 @@ obj/
 .env
 *.user
 data/
+!db/
 TestResults/
 node_modules/

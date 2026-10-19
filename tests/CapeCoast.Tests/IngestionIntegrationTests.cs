@@ -35,7 +35,11 @@ public class DatabaseFixture : IAsyncLifetime
     }
 }
 
-public class IngestionIntegrationTests : IClassFixture<DatabaseFixture>
+[CollectionDefinition("db")]
+public class DbCollection : ICollectionFixture<DatabaseFixture> { }
+
+[Collection("db")]
+public class IngestionIntegrationTests
 {
     private readonly DatabaseFixture _fx;
 

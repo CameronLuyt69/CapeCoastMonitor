@@ -26,6 +26,8 @@ services:
       ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Seq__Url: http://seq:5341
       Alerts__WebhookUrl: ${ALERT_WEBHOOK_URL}
+      Sources__CityWaterQuality__StoragePath: /data/documents
+    volumes: [docdata:/data/documents]
     depends_on:
       migrate: { condition: service_completed_successfully }
       seq: { condition: service_started }
@@ -78,3 +80,4 @@ volumes:
   seqdata:
   grafanadata:
   n8ndata:
+  docdata:

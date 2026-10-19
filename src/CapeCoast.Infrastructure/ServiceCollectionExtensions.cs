@@ -2,6 +2,7 @@ using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Data;
 using CapeCoast.Infrastructure.Ingestion;
 using CapeCoast.Infrastructure.Sources;
+using CapeCoast.Infrastructure.Sources.WaterQuality;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -19,7 +20,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LocationRepository>();
         services.AddSingleton<ObservationRepository>();
         services.AddSingleton<IngestionRunRepository>();
+        services.AddSingleton<WaterQualityRepository>();
         services.AddSingleton<IngestionService>();
+        services.AddSingleton<WaterQualityIngestionService>();
         services.AddSingleton<FreshnessChecker>();
         return services;
     }
@@ -35,6 +38,9 @@ public static class ServiceCollectionExtensions
         // a disabled source simply isn't registered, so its job has nothing to run
         if (options.OpenMeteoMarine.Enabled) services.AddSingleton<IMarineSource, OpenMeteoMarineSource>();
         if (options.OpenMeteoWind.Enabled) services.AddSingleton<IWindSource, OpenMeteoWindSource>();
+
+        services.AddHttpClient(CityReportSource.SourceName, c => c.DefaultRequestHeaders.UserAgent.ParseAdd("CapeCoastMonitor/0.1 (non-commercial portfolio project)"));
+        if (options.CityWaterQuality.Enabled) services.AddSingleton<IWaterQualitySource, CityReportSource>();
         return services;
     }
 }

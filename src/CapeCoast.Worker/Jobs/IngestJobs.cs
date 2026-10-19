@@ -1,6 +1,7 @@
 using CapeCoast.Core.Sources;
 using CapeCoast.Infrastructure.Ingestion;
 using CapeCoast.Infrastructure.Sources;
+using CapeCoast.Infrastructure.Sources.WaterQuality;
 using Microsoft.Extensions.Options;
 using Quartz;
 
@@ -45,6 +46,25 @@ public class WindIngestJob : IJob
 }
 
 [DisallowConcurrentExecution]
+public class WaterQualityIngestJob : IJob
+{
+    private readonly IEnumerable<IWaterQualitySource> _sources;
+    private readonly WaterQualityIngestionService _ingestion;
+
+    public WaterQualityIngestJob(IEnumerable<IWaterQualitySource> sources, WaterQualityIngestionService ingestion)
+    {
+        _sources = sources;
+        _ingestion = ingestion;
+    }
+
+    public async Task Execute(IJobExecutionContext context)
+    {
+        foreach (var source in _sources)
+            await _ingestion.RunAsync(source, context.CancellationToken);
+    }
+}
+
+[DisallowConcurrentExecution]
 public class FreshnessJob : IJob
 {
     private readonly FreshnessChecker _checker;
@@ -64,6 +84,7 @@ public class FreshnessJob : IJob
         {
             (OpenMeteoMarineSource.SourceName, _options.OpenMeteoMarine),
             (OpenMeteoWindSource.SourceName, _options.OpenMeteoWind),
+            (CityReportSource.SourceName, (SourceOptions)_options.CityWaterQuality),
         };
 
         foreach (var (name, o) in checks.Where(c => c.Item2.Enabled))
