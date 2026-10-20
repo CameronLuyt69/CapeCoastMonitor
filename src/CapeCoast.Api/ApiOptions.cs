@@ -19,7 +19,8 @@ public class RateLimitOptions
     public int PublicPerMinute { get; set; } = 120;
     public int LoginPerMinute { get; set; } = 8;
     public int AdminPerMinute { get; set; } = 60;
-    public int StreamsPerClient { get; set; } = 4;
+    // every browser on one machine, or behind one proxy, looks like the same client, so leave some room
+    public int StreamsPerClient { get; set; } = 10;
 }
 
 public class WaterQualityDisplayOptions

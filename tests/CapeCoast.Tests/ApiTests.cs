@@ -447,6 +447,17 @@ public class ApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Pages_send_the_site_origin_as_referer_because_openstreetmap_asks_tile_users_to_identify_themselves()
+    {
+        var response = await Get("/");
+
+        // "no-referrer" made OSM's tile servers refuse the map, so anything that hides the origin is a regression
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Contains("https://tile.openstreetmap.org", response.Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
     public async Task OpenApi_document_describes_the_endpoints()
     {
         var text = await (await Get("/swagger/v1/swagger.json")).Content.ReadAsStringAsync();

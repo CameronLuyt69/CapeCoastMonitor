@@ -18,6 +18,7 @@ export function createMap(container, onSelect) {
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
+    referrerPolicy: 'strict-origin-when-cross-origin',   // OSM expects the site to identify itself
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 

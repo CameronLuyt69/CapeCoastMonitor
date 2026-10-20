@@ -74,7 +74,8 @@ public static class ApiApp
         app.Use(async (context, next) =>
         {
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            context.Response.Headers["Referrer-Policy"] = "no-referrer";
+            // OpenStreetMap's tile servers ask browsers to identify the site with a Referer, so send the origin (never the path)
+            context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
             context.Response.Headers["X-Frame-Options"] = "DENY";
             // Swagger UI ships inline scripts, so the strict policy is for the app itself
             if (!context.Request.Path.StartsWithSegments("/swagger"))
